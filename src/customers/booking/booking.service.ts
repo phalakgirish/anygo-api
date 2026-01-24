@@ -119,7 +119,6 @@ export class BookingService {
     };
   }
 
-
   // 3️⃣ CREATE BOOKING + DISPATCH
   async createBooking(customerId: string, dto: SelectVehicleDto) {
     // 🔁 Recalculate (never trust frontend)

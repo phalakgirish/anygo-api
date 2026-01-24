@@ -438,5 +438,11 @@ export class DriversController {
   logout(@Req() req) {
     return this.driversService.logoutDriver(req.driverId);
   }
+
+  //Get cities
+  @Get('active-City')
+  getActiveCities() {
+    return this.driversService.getActiveCities();
+  }
 }
 
