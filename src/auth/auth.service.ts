@@ -31,9 +31,15 @@ export class AuthService {
 
     // Temporary storage before OTP
     async createTempData(mobile: string, userType: string, payload: any) {
-        await this.otpModel.deleteMany({ mobile });
+        const existing = await this.otpModel.findOne({ mobile });
 
-        if (!payload.password) payload.password = Math.random().toString(36).slice(-8);
+        if (existing) {
+            existing.payload = payload;
+            existing.userType = userType;
+            existing.expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+            await existing.save();
+            return;
+        }
 
         await this.otpModel.create({
             mobile,
