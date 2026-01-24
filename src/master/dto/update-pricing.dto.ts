@@ -18,5 +18,14 @@ export class UpdatePricingDto {
 
   @IsOptional()
   @IsBoolean()
+  isLoadingAvailable?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  loadingChargePerLabour?: number;
+
+  @IsOptional()
+  @IsBoolean()
   isActive?: boolean;
 }

@@ -25,6 +25,17 @@ export class CreatePricingDto {
   @ApiProperty()
   @IsOptional()
   @IsBoolean()
+  isLoadingAvailable?: boolean;
+
+  @ApiProperty()
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  loadingChargePerLabour?: number;
+
+  @ApiProperty()
+  @IsOptional()
+  @IsBoolean()
   isActive?: boolean;
 }
 

@@ -181,6 +181,8 @@ export class BookingService {
       vehicleType: dto.vehicleType,
       distanceKm,
       durationMin,
+      loadingRequired: dto.loadingRequired === true,
+      labourCount: dto.loadingRequired ? dto.labourCount ?? 0 : 0,
       status: BookingStatus.SEARCHING_DRIVER,
     });
 
