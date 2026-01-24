@@ -456,8 +456,21 @@ export class DriversService {
     const distanceFare = tripDistanceKm * pricing.perKmRate;
     const pickupCharge = booking.pickupCharge || 0;
 
+    let loadingCharge = 0;
+    const labourCount = booking.labourCount ?? 0;
+
+    if (
+      booking.loadingRequired &&
+      pricing.isLoadingAvailable &&
+      pricing.loadingChargePerLabour &&
+      labourCount > 0
+    ) {
+      loadingCharge =
+        pricing.loadingChargePerLabour * labourCount;
+    }
+
     const finalFare =
-      Math.round(baseFare + distanceFare + pickupCharge);
+      Math.round(baseFare + distanceFare + pickupCharge + loadingCharge);
 
     // 3️⃣ Platform commission
     const commissionPercent = pricing.commissionPercent || 20;
@@ -473,6 +486,7 @@ export class DriversService {
     booking.driverEarning = driverEarning;
     booking.fareFinalizedAt = new Date();
     booking.platformCommission = commissionAmount;
+    booking.loadingCharge = loadingCharge;
 
     if (booking.tripStartTime) {
       booking.actualDurationMin = Math.ceil(
@@ -514,6 +528,7 @@ export class DriversService {
       fare: {
         finalFare,
         pickupCharge,
+        loadingCharge,
         distanceFare,
         driverEarning,
         platformCommission: commissionAmount,

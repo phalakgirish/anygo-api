@@ -25,11 +25,17 @@ export class Booking extends Document {
 
   dropLocation: { lat: number; lng: number; };
 
-  @Prop() distanceKm: number;
-  @Prop() durationMin: number;
+  @Prop() 
+  distanceKm: number;
 
-  @Prop() tripType: string;
-  @Prop() vehicleType: string;
+  @Prop() 
+  durationMin: number;
+
+  @Prop() 
+  tripType: string;
+
+  @Prop() 
+  vehicleType: string;
 
   @Prop()
   receiverName: string;
@@ -37,10 +43,14 @@ export class Booking extends Document {
   @Prop()
   receiverMobile: string;
 
-  @Prop() baseFare: number;
-  @Prop() loadingCharge: number;
-  @Prop() discount: number;
-  @Prop() payableAmount: number;
+  @Prop() 
+  baseFare: number;
+
+  @Prop() 
+  discount: number;
+
+  @Prop() 
+  payableAmount: number;
 
   @Prop({ enum: BookingStatus, })
   status: BookingStatus;
@@ -149,6 +159,15 @@ export class Booking extends Document {
 
   @Prop()
   customerMobile: string;
+
+  @Prop({ default: false })
+  loadingRequired?: boolean;
+
+  @Prop({ default: 0 })
+  labourCount?: number;
+
+  @Prop({ default: 0 })
+  loadingCharge?: number;
 
 }
 

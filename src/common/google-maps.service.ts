@@ -25,28 +25,32 @@ export class GoogleMapsService {
     dropLat: number,
     dropLng: number,
   ) {
-    const response = await this.client.distancematrix({
-      params: {
-        origins: [{ lat: pickupLat, lng: pickupLng }],
-        destinations: [{ lat: dropLat, lng: dropLng }],
-        key: this.apiKey,
-      },
-    });
+    try {
+      const response = await this.client.distancematrix({
+        params: {
+          origins: [{ lat: pickupLat, lng: pickupLng }],
+          destinations: [{ lat: dropLat, lng: dropLng }],
+          key: this.apiKey,
+        },
+      });
 
-    const element = response.data.rows[0].elements[0];
+      const element = response.data.rows?.[0]?.elements?.[0];
 
-    if (element.status !== 'OK') {
-      throw new BadRequestException('Route not found');
+      if (!element || element.status !== 'OK') {
+        throw new BadRequestException('Route not found');
+      }
+
+      return {
+        distanceKm: element.distance.value / 1000,
+        durationMin: Math.ceil(element.duration.value / 60),
+      };
+    } catch (error) {
+      console.error('Google Maps Error:', error.response?.data || error.message);
+
+      throw new BadRequestException(
+        'Unable to calculate route. Please try again.',
+      );
     }
-
-    return {
-      distanceKm: element.distance.value / 1000,
-      durationMin: Math.ceil(element.duration.value / 60),
-    };
-  }
-
-  isOutstation(distanceKm: number): boolean {
-    return distanceKm > 30;
   }
 
   //Geo reverse code
