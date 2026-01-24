@@ -121,6 +121,8 @@ export class Driver {
         ifscCode: string;
     };
 
+    @Prop()
+    city: string;
 }
 
 export const DriverSchema = SchemaFactory.createForClass(Driver);

@@ -12,12 +12,13 @@ import { GatewaysModule } from 'src/gateways/gateways.module';
 import { Withdraw, WithdrawSchema } from './schemas/withdraw.schema';
 import { Pricing, PricingSchema } from 'src/customers/booking/schemas/pricing.schema';
 import { DigiLockerService } from './digilocker.service';
+import { City, CitySchema } from 'src/master/schemas/city.schema';
 
 @Module({
   imports: [
     MongooseModule.forFeature([{ name: Driver.name, schema: DriverSchema },
     { name: Booking.name, schema: BookingSchema }, { name: Withdraw.name, schema: WithdrawSchema },
-    { name: Pricing.name, schema: PricingSchema },]),
+    { name: Pricing.name, schema: PricingSchema },{ name: City.name, schema: CitySchema },]),
     JwtModule.register({
       secret: 'driver-registration-secret',
       signOptions: { expiresIn: '1d' },

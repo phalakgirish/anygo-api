@@ -17,6 +17,7 @@ import { Withdraw, WithdrawDocument } from './schemas/withdraw.schema';
 import { Pricing, PricingDocument } from 'src/customers/booking/schemas/pricing.schema';
 import { DigiLockerService } from './digilocker.service';
 import { PaymentStatus } from 'src/customers/booking/dto/payment-status.dto';
+import { City, CityDocument } from 'src/master/schemas/city.schema';
 
 
 @Injectable()
@@ -32,12 +33,25 @@ export class DriversService {
     private authService: AuthService,
     @InjectModel(Booking.name) private bookingModel: Model<BookingDocument>,
     @InjectModel(Pricing.name) private pricingModel: Model<PricingDocument>,
+    @InjectModel(City.name) private readonly cityModel: Model<CityDocument>,
   ) { }
 
   // 1. Personal (OTP step)
   async registerPersonal(mobile: string, dto: DriverPersonalDto) {
     const exists = await this.findByMobile(mobile);
     if (exists) throw new BadRequestException("Mobile already exists");
+
+    // ✅ Validate city from master
+    const cityExists = await this.cityModel.findOne({
+      name: dto.city,
+      isActive: true,
+    });
+
+    if (!cityExists) {
+      throw new BadRequestException(
+        'Driver registration not allowed for this city',
+      );
+    }
 
     const hashedPassword = await bcrypt.hash(dto.password, 10);
 
@@ -924,6 +938,7 @@ export class DriversService {
         firstName: driver.firstName,
         lastName: driver.lastName,
         mobile: driver.mobile,
+        city: driver.city,
       },
     };
   }
@@ -934,6 +949,7 @@ export class DriversService {
     data: {
       firstName?: string;
       lastName?: string;
+      city?: string;
     },
   ) {
     const driver = await this.driverModel.findById(driverId);
@@ -941,8 +957,29 @@ export class DriversService {
       throw new NotFoundException('Driver not found');
     }
 
-    if (data.firstName !== undefined) driver.firstName = data.firstName;
-    if (data.lastName !== undefined) driver.lastName = data.lastName;
+    if (data.firstName !== undefined) {
+      driver.firstName = data.firstName;
+    }
+
+    if (data.lastName !== undefined) {
+      driver.lastName = data.lastName;
+    }
+
+    // ✅ CITY UPDATE WITH MASTER VALIDATION
+    if (data.city !== undefined) {
+      const cityExists = await this.cityModel.findOne({
+        name: data.city,
+        isActive: true,
+      });
+
+      if (!cityExists) {
+        throw new BadRequestException(
+          'Service is not available in this city',
+        );
+      }
+
+      driver.city = data.city;
+    }
 
     await driver.save();
 
@@ -952,6 +989,7 @@ export class DriversService {
         firstName: driver.firstName,
         lastName: driver.lastName,
         mobile: driver.mobile,
+        city: driver.city,
       },
     };
   }

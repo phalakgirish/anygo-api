@@ -131,10 +131,34 @@ export class BookingService {
         dto.dropLng,
       );
 
-    const city = await this.mapsService.getCityFromLatLng(
+    const pickupCity = await this.mapsService.getCityFromLatLng(
       dto.pickupLat,
       dto.pickupLng,
     );
+
+    // ✅ Check city exists in master
+    const cityExists = await this.CityModel.findOne({
+      name: pickupCity,
+      isActive: true,
+    });
+
+    if (!cityExists) {
+      throw new BadRequestException(
+        'Booking is not available for this city',
+      );
+    }
+
+    // ✅ Check drivers exist for this city
+    const driverExistsInCity = await this.driverModel.exists({
+      city: pickupCity,
+      isOnline: true,
+    });
+
+    if (!driverExistsInCity) {
+      throw new BadRequestException(
+        'Booking is not available for this city',
+      );
+    }
 
     const customer = await this.customerModel
       .findById(customerId)
@@ -150,7 +174,7 @@ export class BookingService {
 
     const booking = await this.bookingModel.create({
       customerId,
-      city,
+      city: pickupCity,
       customerName,
       customerMobile,
       pickupLocation: { lat: dto.pickupLat, lng: dto.pickupLng },
@@ -259,5 +283,46 @@ export class BookingService {
     }
 
     return { message: 'Booking cancelled successfully' };
+  }
+
+  // 9. Customer Live Tracking
+  async getCurrentLiveBooking(customerId: string) {
+    const booking = await this.findCurrentBooking(customerId);
+
+    if (!booking) {
+      return { status: 'NO_ACTIVE_BOOKING' };
+    }
+
+    const driver = booking.driverId
+      ? await this.driverModel.findById(booking.driverId)
+      : null;
+
+    return {
+      _id: booking._id,
+      status: booking.status,
+
+      pickupLocation: booking.pickupLocation,
+      dropLocation: booking.dropLocation,
+
+      driver: driver
+        ? {
+          name: driver.firstName,
+          phone: driver.mobile,
+          vehicleNumber: driver.vehicleNumber,
+          currentLocation: driver.currentLocation?.coordinates?.length
+            ? {
+              lat: driver.currentLocation.coordinates[1],
+              lng: driver.currentLocation.coordinates[0],
+            }
+            : null,
+        }
+        : null,
+      routePath: booking.routePath, // ✅ IMPORTANT
+
+      driverToPickupEtaMin: booking.driverToPickupEtaMin,
+      pickupToDropEtaMin: booking.pickupToDropEtaMin,
+      distanceKm: booking.distanceKm,
+      finalFare: booking.finalFare,
+    };
   }
 }

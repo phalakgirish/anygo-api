@@ -26,4 +26,9 @@ export class DriverPersonalDto {
   @IsNotEmpty()
   @MinLength(6)
   password: string;
+
+  @ApiProperty()
+  @IsNotEmpty()
+  @IsString()
+  city: string;  
 }
