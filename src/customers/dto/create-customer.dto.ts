@@ -24,46 +24,28 @@ export function IsTrue(validationOptions?: ValidationOptions) {
 }
 
 export class CreateCustomerDto {
-  @ApiProperty({
-    description: 'First Name',
-    example: 'Girish',
-    required: true,
-  })
+  @ApiProperty()
   @IsNotEmpty()
   @IsString()
   firstName: string;
 
-  @ApiProperty({
-    description: 'Last Name',
-    example: 'Phalak',
-    required: true,
-  })
+  @ApiProperty()
   @IsNotEmpty()
   @IsString()
   lastName: string;
 
-   @ApiProperty({
-    description: 'Mobile Number',
-    example: '8879679180',
-    required: true,
-  })
+  @ApiProperty()
   @IsNotEmpty()
   @IsMobilePhone('en-IN', { strictMode: false }, { message: 'Invalid Indian mobile number' })
   mobile: string;
 
-  @ApiProperty({
-    description: 'Email Id',
-    example: 'shital@psoftsolutions.in',
-  })
+  @ApiProperty()
   @IsNotEmpty()
   @IsEmail()
   email: string;
 
   // Password may be optional for multi-step registration; required here for single-step
-    @ApiProperty({
-    description: 'Password',
-    example: '123456',
-  })
+  @ApiProperty()
   @IsNotEmpty()
   @IsString()
   @MinLength(6)
