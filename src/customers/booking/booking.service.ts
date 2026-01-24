@@ -62,6 +62,19 @@ export class BookingService {
       dto.pickupLng,
     );
 
+    // ✅ City must be active
+    const cityExists = await this.CityModel.findOne({
+      name: city,
+      isActive: true,
+    });
+
+    if (!cityExists) {
+      throw new BadRequestException({
+        code: 'CITY_NOT_SUPPORTED',
+        message: 'Service not available in this city',
+      });
+    }
+
     const vehicles = await this.vehicleModel.find({ isActive: true });
 
     const pricingList = await this.pricingModel.find({
@@ -69,53 +82,66 @@ export class BookingService {
       isActive: true,
     });
 
-    const isBookingForOther =
-      !!dto.receiverName && !!dto.receiverMobile;
+    const availableVehicles: {
+      vehicleType: string;
+      estimatedFare: number | null;
+      etaMin: number;
+      driversAvailable: number;
+    }[] = [];
+
+    for (const vehicle of vehicles) {
+      // 🔥 USE EXISTING GEO FUNCTION
+      const drivers =
+        await this.driversService.findNearbyDrivers({
+          pickupLat: dto.pickupLat,
+          pickupLng: dto.pickupLng,
+          vehicleType: vehicle.vehicleType,
+          radiusKm: 3, // or 5
+        });
+
+      if (!drivers.length) continue; // 🚫 hide vehicle
+
+      const AVERAGE_SPEED_KMPH = 30;
+
+      const nearestDriver = drivers[0]; // closest one
+
+      const etaMin = Math.ceil(
+        ((nearestDriver.distanceMeters / 1000) / AVERAGE_SPEED_KMPH) * 60
+      );
+
+      const pricing = pricingList.find(
+        p => p.vehicleType === vehicle.vehicleType,
+      );
+
+      let estimatedFare: number | null = null;
+
+      if (pricing) {
+        estimatedFare = Math.round(
+          Number(pricing.baseFare) +
+          distanceKm * Number(pricing.perKmRate),
+        );
+      }
+
+      availableVehicles.push({
+        vehicleType: vehicle.vehicleType,
+        estimatedFare,
+        etaMin,
+        driversAvailable: drivers.length,
+      });
+    }
+
+    // 🚫 No vehicles = no service
+    if (!availableVehicles.length) {
+      throw new BadRequestException(
+        'No drivers available nearby',
+      );
+    }
 
     return {
       distanceKm,
       durationMin,
       city,
-
-      bookingFor: isBookingForOther ? 'OTHER' : 'SELF',
-
-      receiver: isBookingForOther
-        ? {
-          name: dto.receiverName,
-          mobile: dto.receiverMobile,
-        }
-        : null,
-
-      vehicles: vehicles.map(vehicle => {
-        const pricing = pricingList.find(
-          p => p.vehicleType === vehicle.vehicleType,
-        );
-
-        let estimatedFare: number | null = null;
-
-        if (pricing) {
-          const baseFare = Number(pricing.baseFare);
-          const perKmRate = Number(pricing.perKmRate);
-          const distance = Number(distanceKm);
-
-          if (
-            Number.isFinite(baseFare) &&
-            Number.isFinite(perKmRate) &&
-            Number.isFinite(distance)
-          ) {
-            estimatedFare = Math.round(
-              baseFare + distance * perKmRate
-            );
-          }
-        }
-
-        return {
-          vehicleType: vehicle.vehicleType,
-          estimatedFare,
-          etaMin: durationMin,
-        };
-      }),
-
+      vehicles: availableVehicles,
     };
   }
 

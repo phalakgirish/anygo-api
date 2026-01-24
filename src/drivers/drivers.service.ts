@@ -603,27 +603,38 @@ export class DriversService {
       pickupLat,
       pickupLng,
       vehicleType,
-      radiusKm = 3, // default 3km
+      radiusKm = 3,
     } = params;
 
-    return this.driverModel.find({
-      isOnline: true,
-      isAvailable: true,
-      vehicleType,
-      currentLocation: {
-        $near: {
-          $geometry: {
+    return this.driverModel.aggregate([
+      {
+        $geoNear: {
+          near: {
             type: 'Point',
             coordinates: [pickupLng, pickupLat],
           },
-          $maxDistance: radiusKm * 1000, // meters
+          distanceField: 'distanceMeters',
+          maxDistance: radiusKm * 1000,
+          spherical: true,
+          query: {
+            isOnline: true,
+            isAvailable: true,
+            isOnTrip: false,
+            vehicleType,
+          },
         },
       },
-    })
-      .select('_id firstName lastName currentLocation') // keep payload light
-      .limit(10); // safety limit
-  }
+      {
+        $project: {
+          _id: 1,
+          distanceMeters: 1,
+        },
+      },
+      { $limit: 10 },
 
+    ]);
+
+  }
   // 13. Driver Earnings
   async getDriverEarnings(driverId: string) {
     // Get all trips or bookings for the driver
