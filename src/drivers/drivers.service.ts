@@ -192,6 +192,17 @@ export class DriversService {
     };
   }
 
+  // Get Cities 
+  async getActiveCities() {
+    const cities = await this.cityModel
+      .find({ isActive: true })
+      .select('name -_id')
+      .sort({ name: 1 })
+      .lean();
+
+    return cities.map(c => c.name);
+  }
+
   // 6. Driver Status 
   async updateOnlineStatus(
     driverId: string,
