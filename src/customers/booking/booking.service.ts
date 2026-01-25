@@ -99,6 +99,22 @@ export class BookingService {
           radiusKm: 3, // or 5
         });
 
+         // let drivers = await this.driversService.findNearbyDrivers({
+      //   pickupLat: dto.pickupLat,
+      //   pickupLng: dto.pickupLng,
+      //   vehicleType: vehicle.vehicleType,
+      //   radiusKm: 3,
+      // });
+
+      // if (!drivers || drivers.length === 0) {
+      //   drivers = await this.driversService.findNearbyDrivers({
+      //     pickupLat: dto.pickupLat,
+      //     pickupLng: dto.pickupLng,
+      //     vehicleType: vehicle.vehicleType,
+      //     radiusKm: 5,
+      //   });
+      // }
+
       if (!drivers.length) continue; // 🚫 hide vehicle
 
       const AVERAGE_SPEED_KMPH = 30;
@@ -202,6 +218,10 @@ export class BookingService {
       city: pickupCity,
       customerName,
       customerMobile,
+      receiverName:
+        dto.receiverName?.trim() || customerName,
+      receiverMobile:
+        dto.receiverMobile?.trim() || customerMobile,
       pickupLocation: { lat: dto.pickupLat, lng: dto.pickupLng },
       dropLocation: { lat: dto.dropLat, lng: dto.dropLng },
       vehicleType: dto.vehicleType,
