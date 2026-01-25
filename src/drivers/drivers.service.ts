@@ -313,7 +313,7 @@ export class DriversService {
       {
         _id: bookingId,
         status: BookingStatus.DRIVER_NOTIFIED,
-        rejectedDrivers: { $ne: new Types.ObjectId(driverId) },
+        // rejectedDrivers: { $ne: new Types.ObjectId(driverId) },
       },
       {
         $set: {
