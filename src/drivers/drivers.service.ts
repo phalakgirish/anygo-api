@@ -635,6 +635,7 @@ export class DriversService {
     ]);
 
   }
+  
   // 13. Driver Earnings
   async getDriverEarnings(driverId: string) {
     // Get all trips or bookings for the driver

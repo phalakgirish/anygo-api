@@ -15,6 +15,7 @@ import { City, CityDocument } from 'src/master/schemas/city.schema';
 import { Vehicle } from 'src/master/schemas/vehicle.schema';
 import { DriversService } from 'src/drivers/drivers.service';
 import { Customer } from '../schemas/customer.schema';
+import { BookingEstimate, BookingEstimateDocument } from './schemas/booking-estimate.schema';
 
 @Injectable()
 export class BookingService {
@@ -30,6 +31,7 @@ export class BookingService {
     @InjectModel(City.name) private CityModel: Model<CityDocument>,
     @InjectModel('Vehicle') private readonly vehicleModel: Model<Vehicle>,
     @InjectModel('Customer') private readonly customerModel: Model<Customer>,
+    @InjectModel(BookingEstimate.name) private readonly bookingEstimateModel: Model<BookingEstimateDocument>,
   ) { }
 
   // STEP 1: route check (NO DB)
@@ -48,7 +50,7 @@ export class BookingService {
     };
   }
 
-  async getEstimate(dto: BookingEstimateDto) {
+  async getEstimate(customerId: string, dto: BookingEstimateDto) {
     const { distanceKm, durationMin } =
       await this.mapsService.getDistanceAndDuration(
         dto.pickupLat,
@@ -75,6 +77,16 @@ export class BookingService {
       });
     }
 
+    // ✅ STORE RECEIVER INFO HERE
+    await this.bookingEstimateModel.findOneAndUpdate(
+      { customerId },
+      {
+        receiverName: dto.receiverName?.trim(),
+        receiverMobile: dto.receiverMobile?.trim(),
+      },
+      { upsert: true, new: true },
+    );
+
     const vehicles = await this.vehicleModel.find({ isActive: true });
 
     const pricingList = await this.pricingModel.find({
@@ -91,29 +103,30 @@ export class BookingService {
 
     for (const vehicle of vehicles) {
       // 🔥 USE EXISTING GEO FUNCTION
-      const drivers =
-        await this.driversService.findNearbyDrivers({
+      let drivers = await this.driversService.findNearbyDrivers({
+        pickupLat: dto.pickupLat,
+        pickupLng: dto.pickupLng,
+        vehicleType: vehicle.vehicleType,
+        radiusKm: 3,
+      });
+
+      if (!drivers.length) {
+        drivers = await this.driversService.findNearbyDrivers({
           pickupLat: dto.pickupLat,
           pickupLng: dto.pickupLng,
           vehicleType: vehicle.vehicleType,
-          radiusKm: 3, // or 5
+          radiusKm: 5,
         });
+      }
 
-         // let drivers = await this.driversService.findNearbyDrivers({
-      //   pickupLat: dto.pickupLat,
-      //   pickupLng: dto.pickupLng,
-      //   vehicleType: vehicle.vehicleType,
-      //   radiusKm: 3,
-      // });
-
-      // if (!drivers || drivers.length === 0) {
-      //   drivers = await this.driversService.findNearbyDrivers({
-      //     pickupLat: dto.pickupLat,
-      //     pickupLng: dto.pickupLng,
-      //     vehicleType: vehicle.vehicleType,
-      //     radiusKm: 5,
-      //   });
-      // }
+      if (!drivers.length) {
+        drivers = await this.driversService.findNearbyDrivers({
+          pickupLat: dto.pickupLat,
+          pickupLng: dto.pickupLng,
+          vehicleType: vehicle.vehicleType,
+          radiusKm: 10,
+        });
+      }
 
       if (!drivers.length) continue; // 🚫 hide vehicle
 
@@ -213,15 +226,17 @@ export class BookingService {
     const customerName = `${customer.firstName ?? ''} ${customer.lastName ?? ''}`.trim();
     const customerMobile = customer.mobile;
 
+    const estimate = await this.bookingEstimateModel
+      .findOne({ customerId })
+      .lean();
+
     const booking = await this.bookingModel.create({
       customerId,
       city: pickupCity,
       customerName,
       customerMobile,
-      receiverName:
-        dto.receiverName?.trim() || customerName,
-      receiverMobile:
-        dto.receiverMobile?.trim() || customerMobile,
+      receiverName: estimate?.receiverName || customerName,
+      receiverMobile: estimate?.receiverMobile || customerMobile,
       pickupLocation: { lat: dto.pickupLat, lng: dto.pickupLng },
       dropLocation: { lat: dto.dropLat, lng: dto.dropLng },
       vehicleType: dto.vehicleType,
@@ -233,12 +248,30 @@ export class BookingService {
     });
 
     // 🔍 Find nearby drivers
-    const drivers = await this.driversService.findNearbyDrivers({
+    let drivers = await this.driversService.findNearbyDrivers({
       pickupLat: dto.pickupLat,
       pickupLng: dto.pickupLng,
       vehicleType: dto.vehicleType,
       radiusKm: 3,
     });
+
+    if (!drivers.length) {
+      drivers = await this.driversService.findNearbyDrivers({
+        pickupLat: dto.pickupLat,
+        pickupLng: dto.pickupLng,
+        vehicleType: dto.vehicleType,
+        radiusKm: 5,
+      });
+    }
+
+    if (!drivers.length) {
+      drivers = await this.driversService.findNearbyDrivers({
+        pickupLat: dto.pickupLat,
+        pickupLng: dto.pickupLng,
+        vehicleType: dto.vehicleType,
+        radiusKm: 10,
+      });
+    }
 
     if (!drivers.length) {
       booking.status = BookingStatus.NO_DRIVER_FOUND;
@@ -259,6 +292,9 @@ export class BookingService {
 
     booking.status = BookingStatus.DRIVER_NOTIFIED;
     await booking.save();
+
+    // ✅ CLEANUP TEMP ESTIMATE (CORRECT PLACE)
+    await this.bookingEstimateModel.deleteOne({ customerId });
 
     return { bookingId: booking._id };
   }

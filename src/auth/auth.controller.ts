@@ -6,6 +6,8 @@ import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { SendOtpDto } from './dto/send-otp.dto';
 import { LoginDto } from './dto/login.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 
 // multer config: place uploaded files into ./uploads/temp
 const uploadOptions = {
@@ -38,5 +40,17 @@ export class AuthController {
   @Post('login')
   async login(@Body() dto: LoginDto) {
     return this.authService.login(dto.mobile, dto.password);
+  }
+
+  // Forgot Password
+  @Post('forgot-password')
+  forgotPassword(@Body() dto: ForgotPasswordDto) {
+    return this.authService.forgotPassword(dto.mobile);
+  }
+
+  //Reset Password
+  @Post('reset-password')
+  resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.authService.resetPassword(dto);
   }
 }

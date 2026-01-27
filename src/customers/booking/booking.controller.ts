@@ -14,15 +14,6 @@ export class BookingController {
   @UseGuards(CustomerGuard)
   @Post('route-check')
   @ApiOperation({ summary: 'Check route distance and duration' })
-  @ApiResponse({
-    status: 200,
-    schema: {
-      example: {
-        distanceKm: 12.5,
-        durationMin: 35,
-      },
-    },
-  })
   routeCheck(@Body() dto: RouteCheckDto) {
     return this.bookingService.routeCheck(dto);
   }
@@ -31,67 +22,14 @@ export class BookingController {
   @UseGuards(CustomerGuard)
   @Post('estimate')
   @ApiOperation({ summary: 'Get fare estimate before booking' })
-  @ApiResponse({
-    status: 201,
-    schema: {
-      example: {
-        distanceKm: 31.059,
-        durationMin: 53,
-        vehicles: [
-          {
-            vehicleType: 'Bike',
-            estimatedFare: 170,
-            etaMin: 53,
-          },
-          {
-            vehicleType: 'MiniTruck',
-            estimatedFare: 420,
-            etaMin: 53,
-          },
-        ],
-      },
-    },
-  })
-  @ApiResponse({
-    status: 400,
-    schema: {
-      example: {
-        statusCode: 400,
-        message: 'Pricing not available',
-      },
-    },
-  })
-  getEstimate(@Body() dto: BookingEstimateDto) {
-    return this.bookingService.getEstimate(dto);
-  }
+  getEstimate( @Req() req, @Body() dto: BookingEstimateDto,) {
+  return this.bookingService.getEstimate(req.customerId, dto);
+}
 
   @ApiBearerAuth()
   @UseGuards(CustomerGuard)
   @Post('create')
   @ApiOperation({ summary: 'Create booking after vehicle selection' })
-  @ApiResponse({
-    status: 201,
-    description: 'Booking created successfully',
-    schema: {
-      example: {
-        message: 'Booking created',
-        bookingId: '665f0c12a9d8e5f123456789',
-        estimatedFare: 180,
-        distanceKm: 12.5,
-        durationMin: 35,
-      },
-    },
-  })
-  @ApiResponse({
-    status: 400,
-    description: 'Invalid route or vehicle',
-    schema: {
-      example: {
-        statusCode: 400,
-        message: 'Invalid pickup/drop location',
-      },
-    },
-  })
   create(@Req() req, @Body() dto: SelectVehicleDto) {
     return this.bookingService.createBooking(req.customerId, dto,);
   }

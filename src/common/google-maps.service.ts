@@ -73,7 +73,7 @@ export class GoogleMapsService {
       const city = result.address_components.find(comp =>
         comp.types.includes(AddressType.locality),
       );
-      if (city) return city.long_name;
+      if (city) return this.normalizeCityName(city.long_name);
     }
 
     // 2️. District (very common in India)
@@ -81,7 +81,7 @@ export class GoogleMapsService {
       const district = result.address_components.find(comp =>
         comp.types.includes(AddressType.administrative_area_level_2),
       );
-      if (district) return district.long_name;
+      if (district) return this.normalizeCityName(district.long_name);
     }
 
     // 3️. State (extreme fallback)
@@ -89,7 +89,7 @@ export class GoogleMapsService {
       const state = result.address_components.find(comp =>
         comp.types.includes(AddressType.administrative_area_level_1),
       );
-      if (state) return state.long_name;
+      if (state) return this.normalizeCityName(state.long_name);
     }
 
     throw new BadRequestException('City not found from coordinates');
@@ -111,6 +111,17 @@ export class GoogleMapsService {
 
   deg2rad(deg: number): number {
     return deg * (Math.PI / 180);
+  }
+
+  private normalizeCityName(city: string): string {
+    return city
+      .toLowerCase()
+      .replace('greater ', '')
+      .replace('suburban', '')
+      .replace(' city', '')
+      .split(',')[0]
+      .trim()
+      .replace(/\b\w/g, char => char.toUpperCase());
   }
 
 }
