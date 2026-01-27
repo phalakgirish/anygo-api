@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, forwardRef, Inject } from '@nestjs/common';
+import { Injectable, BadRequestException, forwardRef, Inject, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Otp, OtpDocument } from './schemas/otp.schema';
@@ -11,6 +11,7 @@ import { JwtService } from '@nestjs/jwt';
 import { Owner, OwnerDocument } from 'src/owner/schemas/owner.schema';
 import { OwnerService } from 'src/owner/owner.service';
 import { OtpSenderService } from './otp-sender.service';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 
 @Injectable()
 export class AuthService {
@@ -18,7 +19,7 @@ export class AuthService {
         @InjectModel(Otp.name) private otpModel: Model<OtpDocument>,
         @InjectModel(Customer.name) private customerModel: Model<CustomerDocument>,
         @InjectModel(Driver.name) private driverModel: Model<DriverDocument>,
-        @InjectModel(Owner.name) private ownerModel:Model<OwnerDocument>,
+        @InjectModel(Owner.name) private ownerModel: Model<OwnerDocument>,
         @Inject(forwardRef(() => CustomersService))
         private customersService: CustomersService,
         @Inject(forwardRef(() => DriversService))
@@ -27,7 +28,7 @@ export class AuthService {
         private ownerService: OwnerService,
         private readonly jwtService: JwtService,
         private readonly otpSender: OtpSenderService,
-    ) {}
+    ) { }
 
     // Temporary storage before OTP
     async createTempData(mobile: string, userType: string, payload: any) {
@@ -180,6 +181,99 @@ export class AuthService {
             userType,
             userId,
             token,
+        };
+    }
+
+    // STEP 4.1 – Forgot Password
+    async forgotPassword(mobile: string) {
+        let userType: 'customer' | 'driver' | 'owner' | null = null;
+
+        const customer = await this.customerModel.findOne({ mobile });
+        if (customer) {
+            userType = 'customer';
+        }
+
+        if (!userType) {
+            const driver = await this.driverModel.findOne({ mobile });
+            if (driver) {
+                userType = 'driver';
+            }
+        }
+
+        if (!userType) {
+            const owner = await this.ownerModel.findOne({ mobile });
+            if (owner) {
+                userType = 'owner';
+            }
+        }
+
+        if (!userType) {
+            throw new NotFoundException('Mobile number not registered');
+        }
+
+        const otp = Math.floor(1000 + Math.random() * 9000).toString();
+
+        await this.otpModel.deleteMany({
+            mobile,
+            purpose: 'FORGOT_PASSWORD',
+        });
+
+        await this.otpModel.create({
+            mobile,
+            otp,
+            userType,
+            purpose: 'FORGOT_PASSWORD',
+            expiresAt: new Date(Date.now() + 5 * 60 * 1000),
+        });
+
+        await this.otpSender.sendWhatsappOtp(mobile, otp);
+
+        return {
+            message: 'OTP sent successfully',
+        };
+    }
+    // STEP 4.2 – Reset Password
+    async resetPassword(dto: ResetPasswordDto) {
+        const { mobile, otp, newPassword } = dto;
+
+        const otpDoc = await this.otpModel.findOne({
+            mobile,
+            otp,
+            purpose: 'FORGOT_PASSWORD',
+            expiresAt: { $gt: new Date() },
+        });
+
+        if (!otpDoc) {
+            throw new BadRequestException('Invalid or expired OTP');
+        }
+
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+        if (otpDoc.userType === 'customer') {
+            await this.customerModel.updateOne(
+                { mobile },
+                { password: hashedPassword },
+            );
+        }
+
+        if (otpDoc.userType === 'driver') {
+            await this.driverModel.updateOne(
+                { mobile },
+                { password: hashedPassword },
+            );
+        }
+
+        if (otpDoc.userType === 'owner') {
+            await this.ownerModel.updateOne(
+                { mobile },
+                { password: hashedPassword },
+            );
+        }
+
+        await this.otpModel.deleteOne({ _id: otpDoc._id });
+
+        return {
+            message: 'Password reset successfully',
         };
     }
 }

@@ -22,6 +22,9 @@ export class Otp {
 
   @Prop({ type: Date })
   expiresAt: Date; 
+
+  @Prop({ required: true, enum: ['FORGOT_PASSWORD'] })
+  purpose: string;
 }
 
 export const OtpSchema = SchemaFactory.createForClass(Otp);
