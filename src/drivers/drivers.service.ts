@@ -635,7 +635,7 @@ export class DriversService {
     ]);
 
   }
-  
+
   // 13. Driver Earnings
   async getDriverEarnings(driverId: string) {
     // Get all trips or bookings for the driver
@@ -978,6 +978,14 @@ export class DriversService {
         mobile: driver.mobile,
         city: driver.city,
       },
+      documents: {
+        aadhaar: driver.documents?.aadhaar || null,
+        panCard: driver.documents?.panCard || null,
+        licenseFront: driver.documents?.licenseFront || null,
+        licenseBack: driver.documents?.licenseBack || null,
+        source: driver.documents?.source || 'MANUAL',
+        verified: driver.documents?.verified ?? false,
+      },
     };
   }
 
@@ -1041,6 +1049,72 @@ export class DriversService {
 
     return {
       message: 'Logged out successfully',
+    };
+  }
+
+  // Delete Driver Account
+  async deleteDriverAccount(driverId: string) {
+    const driver = await this.driverModel.findById(driverId);
+    if (!driver) {
+      throw new NotFoundException('Driver not found');
+    }
+
+    if (driver.isOnTrip) {
+      throw new BadRequestException(
+        'Cannot delete account during an active trip',
+      );
+    }
+
+    // Delete withdrawals
+    await this.WithdrawModel.deleteMany({ driverId });
+
+    // ❗ Keep bookings for audit OR anonymize driverId (recommended)
+    // await this.bookingModel.updateMany(
+    //   { driverId },
+    //   { $unset: { driverId: '' } },
+    // );
+
+    // Delete driver
+    await this.driverModel.deleteOne({ _id: driverId });
+
+    return {
+      message: 'Driver account deleted permanently',
+    };
+  }
+
+  // Update Driver Documents 
+  async updateDriverDocuments(
+    driverId: string,
+    files,
+  ) {
+    const driver = await this.driverModel.findById(driverId);
+    if (!driver) throw new NotFoundException('Driver not found');
+
+    const updatedDocs = {
+      aadhaar: files?.aadhaar?.[0]?.filename || driver.documents?.aadhaar,
+      panCard: files?.panCard?.[0]?.filename || driver.documents?.panCard,
+      licenseFront:
+        files?.licenseFront?.[0]?.filename || driver.documents?.licenseFront,
+      licenseBack:
+        files?.licenseBack?.[0]?.filename || driver.documents?.licenseBack,
+
+      // preserve existing metadata
+      source: driver.documents?.source || 'MANUAL',
+      verified: driver.documents?.verified ?? true,
+    };
+
+    await this.driverModel.updateOne(
+      { _id: driverId },
+      {
+        $set: {
+          documents: updatedDocs,
+        },
+      },
+    );
+
+    return {
+      message: 'Documents updated successfully',
+      documents: updatedDocs,
     };
   }
 
