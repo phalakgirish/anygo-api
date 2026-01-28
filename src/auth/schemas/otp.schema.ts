@@ -23,7 +23,7 @@ export class Otp {
   @Prop({ type: Date })
   expiresAt: Date; 
 
-  @Prop({ required: true, enum: ['FORGOT_PASSWORD'] })
+  @Prop({ enum: ['FORGOT_PASSWORD'] })
   purpose: string;
 }
 

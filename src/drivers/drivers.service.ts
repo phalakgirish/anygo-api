@@ -107,11 +107,23 @@ export class DriversService {
     if (!driver) throw new NotFoundException("Driver not found");
 
     const docs = {
-      aadhaar: files?.aadhaar?.[0]?.filename || null,
-      panCard: files?.panCard?.[0]?.filename || null,
-      licenseFront: files?.licenseFront?.[0]?.filename || null,
-      licenseBack: files?.licenseBack?.[0]?.filename || null,
+      aadhaar: files?.aadhaar?.[0]
+        ? `driver-documents/${driverId}/${files.aadhaar[0].filename}`
+        : null,
+
+      panCard: files?.panCard?.[0]
+        ? `driver-documents/${driverId}/${files.panCard[0].filename}`
+        : null,
+
+      licenseFront: files?.licenseFront?.[0]
+        ? `driver-documents/${driverId}/${files.licenseFront[0].filename}`
+        : null,
+
+      licenseBack: files?.licenseBack?.[0]
+        ? `driver-documents/${driverId}/${files.licenseBack[0].filename}`
+        : null,
     };
+
 
     await this.driverModel.updateOne(
       { _id: driverId },
@@ -1083,33 +1095,36 @@ export class DriversService {
   }
 
   // Update Driver Documents 
-  async updateDriverDocuments(
-    driverId: string,
-    files,
-  ) {
+  async updateDriverDocuments(driverId: string, files) {
     const driver = await this.driverModel.findById(driverId);
     if (!driver) throw new NotFoundException('Driver not found');
 
-    const updatedDocs = {
-      aadhaar: files?.aadhaar?.[0]?.filename || driver.documents?.aadhaar,
-      panCard: files?.panCard?.[0]?.filename || driver.documents?.panCard,
-      licenseFront:
-        files?.licenseFront?.[0]?.filename || driver.documents?.licenseFront,
-      licenseBack:
-        files?.licenseBack?.[0]?.filename || driver.documents?.licenseBack,
+    const basePath = `driver-documents/${driverId}`;
 
-      // preserve existing metadata
+    const updatedDocs = {
+      aadhaar: files?.aadhaar?.[0]
+        ? `${basePath}/${files.aadhaar[0].filename}`
+        : driver.documents?.aadhaar,
+
+      panCard: files?.panCard?.[0]
+        ? `${basePath}/${files.panCard[0].filename}`
+        : driver.documents?.panCard,
+
+      licenseFront: files?.licenseFront?.[0]
+        ? `${basePath}/${files.licenseFront[0].filename}`
+        : driver.documents?.licenseFront,
+
+      licenseBack: files?.licenseBack?.[0]
+        ? `${basePath}/${files.licenseBack[0].filename}`
+        : driver.documents?.licenseBack,
+
       source: driver.documents?.source || 'MANUAL',
       verified: driver.documents?.verified ?? true,
     };
 
     await this.driverModel.updateOne(
       { _id: driverId },
-      {
-        $set: {
-          documents: updatedDocs,
-        },
-      },
+      { $set: { documents: updatedDocs } },
     );
 
     return {
