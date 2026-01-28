@@ -124,6 +124,9 @@ export class OwnerService {
           number: driver.vehicleNumber,
           make: driver.vehicleMake,
           chassisNumber: driver.chassisNumber,
+          isOnline: driver.isOnline,
+          isAvailable: driver.isAvailable,
+          city: driver.city,
         },
 
         status: driver.status,
