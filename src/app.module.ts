@@ -10,11 +10,12 @@ import { CommonModule } from './common/common.module';
 import { ConfigModule } from '@nestjs/config';
 import { GatewaysModule } from './gateways/gateways.module';
 import { MasterModule } from './master/master.module';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
-  imports: [ MongooseModule.forRoot('mongodb://localhost:27017/Porter-App'),OwnerModule, CustomersModule, 
+  imports: [ MongooseModule.forRoot('mongodb+srv://anygoUser:BOJkZdLjG5Q5Z6pR@anygo.qwztb8w.mongodb.net/Anygo'),OwnerModule, CustomersModule, 
   DriversModule, AuthModule, CommonModule,MasterModule, 
-  ConfigModule.forRoot({ isGlobal: true,}),GatewaysModule,],
+  ConfigModule.forRoot({ isGlobal: true,}),GatewaysModule,ScheduleModule.forRoot()],
   controllers: [AppController],
   providers: [AppService],
 })

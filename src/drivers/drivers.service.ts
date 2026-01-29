@@ -17,6 +17,7 @@ import { Withdraw, WithdrawDocument } from './schemas/withdraw.schema';
 import { Pricing, PricingDocument } from 'src/customers/booking/schemas/pricing.schema';
 import { DigiLockerService } from './digilocker.service';
 import { PaymentStatus } from 'src/customers/booking/dto/payment-status.dto';
+import { City, CityDocument } from 'src/master/schemas/city.schema';
 
 
 @Injectable()
@@ -32,12 +33,25 @@ export class DriversService {
     private authService: AuthService,
     @InjectModel(Booking.name) private bookingModel: Model<BookingDocument>,
     @InjectModel(Pricing.name) private pricingModel: Model<PricingDocument>,
+    @InjectModel(City.name) private readonly cityModel: Model<CityDocument>,
   ) { }
 
   // 1. Personal (OTP step)
   async registerPersonal(mobile: string, dto: DriverPersonalDto) {
     const exists = await this.findByMobile(mobile);
     if (exists) throw new BadRequestException("Mobile already exists");
+
+    // ✅ Validate city from master
+    const cityExists = await this.cityModel.findOne({
+      name: dto.city,
+      isActive: true,
+    });
+
+    if (!cityExists) {
+      throw new BadRequestException(
+        'Driver registration not allowed for this city',
+      );
+    }
 
     const hashedPassword = await bcrypt.hash(dto.password, 10);
 
@@ -93,11 +107,23 @@ export class DriversService {
     if (!driver) throw new NotFoundException("Driver not found");
 
     const docs = {
-      aadhaar: files?.aadhaar?.[0]?.filename || null,
-      panCard: files?.panCard?.[0]?.filename || null,
-      licenseFront: files?.licenseFront?.[0]?.filename || null,
-      licenseBack: files?.licenseBack?.[0]?.filename || null,
+      aadhaar: files?.aadhaar?.[0]
+        ? `driver-documents/${driverId}/${files.aadhaar[0].filename}`
+        : null,
+
+      panCard: files?.panCard?.[0]
+        ? `driver-documents/${driverId}/${files.panCard[0].filename}`
+        : null,
+
+      licenseFront: files?.licenseFront?.[0]
+        ? `driver-documents/${driverId}/${files.licenseFront[0].filename}`
+        : null,
+
+      licenseBack: files?.licenseBack?.[0]
+        ? `driver-documents/${driverId}/${files.licenseBack[0].filename}`
+        : null,
     };
+
 
     await this.driverModel.updateOne(
       { _id: driverId },
@@ -178,6 +204,17 @@ export class DriversService {
     };
   }
 
+  // Get Cities 
+  async getActiveCities() {
+    const cities = await this.cityModel
+      .find({ isActive: true })
+      .select('name -_id')
+      .sort({ name: 1 })
+      .lean();
+
+    return cities.map(c => c.name);
+  }
+
   // 6. Driver Status 
   async updateOnlineStatus(
     driverId: string,
@@ -207,7 +244,7 @@ export class DriversService {
 
     await this.driverModel.findByIdAndUpdate(driverId, {
       isOnline: dto.isOnline,
-      isAvailable: dto.isOnline,
+      isAvailable: driver.isOnTrip ? false : dto.isOnline,
     });
 
     //Driver Goes Online - Notify Bookings
@@ -262,8 +299,9 @@ export class DriversService {
     // CHECK BOOKINGS AFTER ALL FILTERS
     const bookings = await this.bookingModel.find({
       status: BookingStatus.DRIVER_NOTIFIED,
-      rejectedDrivers: { $ne: driverId },
+      rejectedDrivers: {  $ne: driverId },
       vehicleType: driver.vehicleType,
+       expiresAt: { $gt: new Date() }, 
     });
 
     return bookings;
@@ -289,6 +327,7 @@ export class DriversService {
         _id: bookingId,
         status: BookingStatus.DRIVER_NOTIFIED,
         rejectedDrivers: { $ne: new Types.ObjectId(driverId) },
+        expiresAt: { $gt: new Date() },
       },
       {
         $set: {
@@ -359,6 +398,9 @@ export class DriversService {
     await this.bookingModel.updateOne(
       {
         _id: bookingId,
+        status: 'DRIVER_NOTIFIED',
+         rejectedDrivers: { $ne: new Types.ObjectId(driverId) },
+         expiresAt: { $gt: new Date() },
       },
       {
         $addToSet: { rejectedDrivers: driverId },
@@ -367,7 +409,7 @@ export class DriversService {
 
     return { message: 'Booking rejected' };
   }
-
+  
   // START TRIP
   async startTrip(driverId: string, bookingId: string) {
     const booking = await this.bookingModel.findOneAndUpdate(
@@ -431,8 +473,21 @@ export class DriversService {
     const distanceFare = tripDistanceKm * pricing.perKmRate;
     const pickupCharge = booking.pickupCharge || 0;
 
+    let loadingCharge = 0;
+    const labourCount = booking.labourCount ?? 0;
+
+    if (
+      booking.loadingRequired &&
+      pricing.isLoadingAvailable &&
+      pricing.loadingChargePerLabour &&
+      labourCount > 0
+    ) {
+      loadingCharge =
+        pricing.loadingChargePerLabour * labourCount;
+    }
+
     const finalFare =
-      Math.round(baseFare + distanceFare + pickupCharge);
+      Math.round(baseFare + distanceFare + pickupCharge + loadingCharge);
 
     // 3️⃣ Platform commission
     const commissionPercent = pricing.commissionPercent || 20;
@@ -448,6 +503,7 @@ export class DriversService {
     booking.driverEarning = driverEarning;
     booking.fareFinalizedAt = new Date();
     booking.platformCommission = commissionAmount;
+    booking.loadingCharge = loadingCharge;
 
     if (booking.tripStartTime) {
       booking.actualDurationMin = Math.ceil(
@@ -455,16 +511,16 @@ export class DriversService {
       );
     }
 
-    if (booking.paymentMethod === 'ONLINE') {
-      //Store Razorpay details
-      booking.razorpayPaymentId;
-      booking.razorpayOrderId;
-      booking.razorpaySignature;
+    // 5️⃣ Payment handling (MAIN FIX)
+    // booking.paymentMethod = booking.paymentMethod;
 
+    if (booking.paymentMethod === 'ONLINE') {
+      booking.razorpayPaymentId = booking.razorpayPaymentId;
+      booking.razorpayOrderId = booking.razorpayOrderId;
+      booking.razorpaySignature = booking.razorpaySignature;
       booking.paymentStatus = PaymentStatus.SUCCESS;
     } else {
-      // CASH payment
-      booking.paymentMethod = 'CASH';
+      // CASH
       booking.paymentStatus = PaymentStatus.SUCCESS;
     }
 
@@ -489,6 +545,7 @@ export class DriversService {
       fare: {
         finalFare,
         pickupCharge,
+        loadingCharge,
         distanceFare,
         driverEarning,
         platformCommission: commissionAmount,
@@ -563,25 +620,37 @@ export class DriversService {
       pickupLat,
       pickupLng,
       vehicleType,
-      radiusKm = 3, // default 3km
+      radiusKm = 3,
     } = params;
 
-    return this.driverModel.find({
-      isOnline: true,
-      isAvailable: true,
-      vehicleType,
-      currentLocation: {
-        $near: {
-          $geometry: {
+    return this.driverModel.aggregate([
+      {
+        $geoNear: {
+          near: {
             type: 'Point',
             coordinates: [pickupLng, pickupLat],
           },
-          $maxDistance: radiusKm * 1000, // meters
+          distanceField: 'distanceMeters',
+          maxDistance: radiusKm * 1000,
+          spherical: true,
+          query: {
+            isOnline: true,
+            isAvailable: true,
+            isOnTrip: false,
+            vehicleType,
+          },
         },
       },
-    })
-      .select('_id firstName lastName currentLocation') // keep payload light
-      .limit(10); // safety limit
+      {
+        $project: {
+          _id: 1,
+          distanceMeters: 1,
+        },
+      },
+      { $limit: 10 },
+
+    ]);
+
   }
 
   // 13. Driver Earnings
@@ -924,6 +993,15 @@ export class DriversService {
         firstName: driver.firstName,
         lastName: driver.lastName,
         mobile: driver.mobile,
+        city: driver.city,
+      },
+      documents: {
+        aadhaar: driver.documents?.aadhaar || null,
+        panCard: driver.documents?.panCard || null,
+        licenseFront: driver.documents?.licenseFront || null,
+        licenseBack: driver.documents?.licenseBack || null,
+        source: driver.documents?.source || 'MANUAL',
+        verified: driver.documents?.verified ?? false,
       },
     };
   }
@@ -934,6 +1012,7 @@ export class DriversService {
     data: {
       firstName?: string;
       lastName?: string;
+      city?: string;
     },
   ) {
     const driver = await this.driverModel.findById(driverId);
@@ -941,8 +1020,29 @@ export class DriversService {
       throw new NotFoundException('Driver not found');
     }
 
-    if (data.firstName !== undefined) driver.firstName = data.firstName;
-    if (data.lastName !== undefined) driver.lastName = data.lastName;
+    if (data.firstName !== undefined) {
+      driver.firstName = data.firstName;
+    }
+
+    if (data.lastName !== undefined) {
+      driver.lastName = data.lastName;
+    }
+
+    // ✅ CITY UPDATE WITH MASTER VALIDATION
+    if (data.city !== undefined) {
+      const cityExists = await this.cityModel.findOne({
+        name: data.city,
+        isActive: true,
+      });
+
+      if (!cityExists) {
+        throw new BadRequestException(
+          'Service is not available in this city',
+        );
+      }
+
+      driver.city = data.city;
+    }
 
     await driver.save();
 
@@ -952,6 +1052,7 @@ export class DriversService {
         firstName: driver.firstName,
         lastName: driver.lastName,
         mobile: driver.mobile,
+        city: driver.city,
       },
     };
   }
@@ -965,6 +1066,75 @@ export class DriversService {
 
     return {
       message: 'Logged out successfully',
+    };
+  }
+
+  // Delete Driver Account
+  async deleteDriverAccount(driverId: string) {
+    const driver = await this.driverModel.findById(driverId);
+    if (!driver) {
+      throw new NotFoundException('Driver not found');
+    }
+
+    if (driver.isOnTrip) {
+      throw new BadRequestException(
+        'Cannot delete account during an active trip',
+      );
+    }
+
+    // Delete withdrawals
+    await this.WithdrawModel.deleteMany({ driverId });
+
+    // ❗ Keep bookings for audit OR anonymize driverId (recommended)
+    // await this.bookingModel.updateMany(
+    //   { driverId },
+    //   { $unset: { driverId: '' } },
+    // );
+
+    // Delete driver
+    await this.driverModel.deleteOne({ _id: driverId });
+
+    return {
+      message: 'Driver account deleted permanently',
+    };
+  }
+
+  // Update Driver Documents 
+  async updateDriverDocuments(driverId: string, files) {
+    const driver = await this.driverModel.findById(driverId);
+    if (!driver) throw new NotFoundException('Driver not found');
+
+    const basePath = `driver-documents/${driverId}`;
+
+    const updatedDocs = {
+      aadhaar: files?.aadhaar?.[0]
+        ? `${basePath}/${files.aadhaar[0].filename}`
+        : driver.documents?.aadhaar,
+
+      panCard: files?.panCard?.[0]
+        ? `${basePath}/${files.panCard[0].filename}`
+        : driver.documents?.panCard,
+
+      licenseFront: files?.licenseFront?.[0]
+        ? `${basePath}/${files.licenseFront[0].filename}`
+        : driver.documents?.licenseFront,
+
+      licenseBack: files?.licenseBack?.[0]
+        ? `${basePath}/${files.licenseBack[0].filename}`
+        : driver.documents?.licenseBack,
+
+      source: driver.documents?.source || 'MANUAL',
+      verified: driver.documents?.verified ?? true,
+    };
+
+    await this.driverModel.updateOne(
+      { _id: driverId },
+      { $set: { documents: updatedDocs } },
+    );
+
+    return {
+      message: 'Documents updated successfully',
+      documents: updatedDocs,
     };
   }
 

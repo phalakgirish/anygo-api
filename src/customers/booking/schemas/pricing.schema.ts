@@ -17,6 +17,13 @@ export class Pricing {
   @Prop()
   commissionPercent: number; // 0.2 = 20%
 
+  // ✅ NEW (OPTIONAL)
+  @Prop({ default: 0 })
+  loadingChargePerLabour?: number;
+
+  @Prop({ default: false })
+  isLoadingAvailable?: boolean;
+
   @Prop({ default: true })
   isActive: boolean;
 }

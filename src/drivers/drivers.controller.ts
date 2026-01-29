@@ -1,4 +1,4 @@
-import { Controller, Post, Body, UseInterceptors, UploadedFiles, UseGuards, Req, Get, Param, Patch, Query, } from '@nestjs/common';
+import { Controller, Post, Body, UseInterceptors, UploadedFiles, UseGuards, Req, Get, Param, Patch, Query, Delete, Put, } from '@nestjs/common';
 import { ApiTags, ApiConsumes, ApiBody, ApiBearerAuth, ApiParam, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { DriversService } from './drivers.service';
 import { DriverPersonalDto } from './dto/driver-personal.dto';
@@ -255,16 +255,6 @@ export class DriversController {
   @UseGuards(DriverAuthGuard)
   @Get('wallet-summary')
   @ApiOperation({ summary: 'Get total driver earnings' })
-  @ApiResponse({
-    status: 200,
-    schema: {
-      example: {
-        totalEarnings: 12540,
-        completedTrips: 87,
-        pendingAmount: 840,
-      },
-    },
-  })
   async walletSummary(@Req() req) {
     return this.driversService.getWalletSummary(req.driverId);
   }
@@ -273,14 +263,6 @@ export class DriversController {
   @UseGuards(DriverAuthGuard)
   @Post('bank-details')
   @ApiOperation({ summary: 'Add driver bank details' })
-  @ApiResponse({
-    status: 201,
-    schema: {
-      example: {
-        message: 'Bank details added successfully',
-      },
-    },
-  })
   async addBankDetails(@Req() req, @Body() dto: DriverBankDetailsDto,) {
     return this.driversService.addBankDetails(req.driverId, dto);
   }
@@ -288,26 +270,7 @@ export class DriversController {
   @ApiBearerAuth()
   @UseGuards(DriverAuthGuard)
   @Post('Request-withdraw')
-  @ApiOperation({ summary: 'Request wallet withdrawal' })
-  @ApiResponse({
-    status: 201,
-    schema: {
-      example: {
-        message: 'Withdrawal request submitted',
-        amount: 2000,
-        status: 'PENDING',
-      },
-    },
-  })
-  @ApiResponse({
-    status: 400,
-    schema: {
-      example: {
-        statusCode: 400,
-        message: 'Insufficient wallet balance',
-      },
-    },
-  })
+  @ApiOperation({ summary: 'Request wallet withdrawal' }) 
   async requestWithdrawal(@Req() req, @Body() dto: RequestWithdrawDto,) {
     return this.driversService.requestWithdrawal(req.driverId, dto.amount);
   }
@@ -316,24 +279,6 @@ export class DriversController {
   @UseGuards(DriverAuthGuard)
   @Get('withdrawals-history')
   @ApiOperation({ summary: 'Get driver withdrawal history' })
-  @ApiResponse({
-    status: 200,
-    schema: {
-      example: [
-        {
-          amount: 2000,
-          status: 'APPROVED',
-          requestedAt: '2025-12-20T10:00:00.000Z',
-          processedAt: '2025-12-21T09:30:00.000Z',
-        },
-        {
-          amount: 1500,
-          status: 'PENDING',
-          requestedAt: '2026-01-01T08:15:00.000Z',
-        },
-      ],
-    },
-  })
   async getWithdrawalHistory(@Req() req) {
     return this.driversService.getWithdrawalHistory(req.driverId);
   }
@@ -342,17 +287,6 @@ export class DriversController {
   @UseGuards(DriverAuthGuard)
   @Get('driver-dashboard')
   @ApiOperation({ summary: 'Get driver dashboard data' })
-  @ApiResponse({
-    status: 200,
-    schema: {
-      example: {
-        todayEarnings: 820,
-        activeTrip: null,
-        totalTrips: 87,
-        walletBalance: 3400,
-      },
-    },
-  })
   async getDashboard(@Req() req) {
     return this.driversService.getDriverDashboard(req.driverId);
   }
@@ -438,5 +372,50 @@ export class DriversController {
   logout(@Req() req) {
     return this.driversService.logoutDriver(req.driverId);
   }
+
+  //Get cities
+  @Get('active-City')
+  getActiveCities() {
+    return this.driversService.getActiveCities();
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(DriverAuthGuard)
+  @Delete('delete-account')
+  deleteAccount(@Req() req) {
+    return this.driversService.deleteDriverAccount(req.driverId);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(DriverAuthGuard)
+  @Put('profile/documents')
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    required: true,
+    schema: {
+      type: 'object',
+      properties: {
+        aadhaar: { type: 'string', format: 'binary' },
+        panCard: { type: 'string', format: 'binary' },
+        licenseFront: { type: 'string', format: 'binary' },
+        licenseBack: { type: 'string', format: 'binary' },
+      }
+    }
+  })
+  @UseInterceptors(
+    FileFieldsInterceptor(
+      [
+        { name: 'aadhaar', maxCount: 1 },
+        { name: 'panCard', maxCount: 1 },
+        { name: 'licenseFront', maxCount: 1 },
+        { name: 'licenseBack', maxCount: 1 },
+      ],
+      documentUploadConfig
+    )
+  )
+  updateDocuments( @Req() req, @UploadedFiles() files ) {
+    return this.driversService.updateDriverDocuments(req.driverId, files);
+  }
+
 }
 

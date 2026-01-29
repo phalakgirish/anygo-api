@@ -9,33 +9,42 @@ export class TripsService {
   constructor(
     @InjectModel(Booking.name)
     private bookingModel: Model<Booking>,
-  ) {}
+  ) { }
+
+  // async getTripHistory(customerId: string) {
+  //   const bookings = await this.bookingModel.find({
+  //     customerId,
+  //       status: {
+  //           $in: [
+  //               BookingStatus.CONFIRMED,
+  //               BookingStatus.DRIVER_ASSIGNED,
+  //               BookingStatus.COMPLETED,
+  //               BookingStatus.CANCELLED,
+  //           ],
+  //       },
+  //   }).sort({ createdAt: -1 });
+
+  //   return bookings.map(b => ({
+  //     tripId: b._id,
+  //     driverName: b.driverName || null,
+  //     pickupAddress: b.pickupAddress,
+  //     dropAddress: b.dropAddress,
+  //     durationMin: b.durationMin,
+  //     distanceKm: b.distanceKm,
+  //     fare: b.payableAmount,
+  //     status: b.status,
+  //     tripLabel: this.getTripLabel(b.status),
+  //   }));
+
+  // }
 
   async getTripHistory(customerId: string) {
-    const bookings = await this.bookingModel.find({
-      customerId,
-        status: {
-            $in: [
-                BookingStatus.CONFIRMED,
-                BookingStatus.DRIVER_ASSIGNED,
-                BookingStatus.COMPLETED,
-                BookingStatus.CANCELLED,
-            ],
-        },
-    }).sort({ createdAt: -1 });
-
-    return bookings.map(b => ({
-      tripId: b._id,
-      driverName: b.driverName || null,
-      pickupAddress: b.pickupAddress,
-      dropAddress: b.dropAddress,
-      durationMin: b.durationMin,
-      distanceKm: b.distanceKm,
-      fare: b.payableAmount,
-      status: b.status,
-      tripLabel: this.getTripLabel(b.status),
-    }));
-    
+    return this.bookingModel
+      .find({
+        customerId,
+        status: { $in: ['TRIP_COMPLETED', 'TRIP_STARTED'] },
+      })
+      .sort({ createdAt: -1 });
   }
 
   async getTripDetails(customerId: string, tripId: string) {
@@ -52,20 +61,20 @@ export class TripsService {
   }
 
   private getTripLabel(status: BookingStatus): string {
-  switch (status) {
-    case BookingStatus.DRIVER_ASSIGNED:
-    case BookingStatus.CONFIRMED:
-      return 'On Going';
+    switch (status) {
+      case BookingStatus.DRIVER_ASSIGNED:
+      case BookingStatus.CONFIRMED:
+        return 'On Going';
 
-    case BookingStatus.COMPLETED:
-      return 'Completed';
+      case BookingStatus.COMPLETED:
+        return 'Completed';
 
-    case BookingStatus.CANCELLED:
-      return 'Cancelled';
+      case BookingStatus.CANCELLED:
+        return 'Cancelled';
 
-    default:
-      return 'Pending';
+      default:
+        return 'Pending';
+    }
   }
-}
 
 }
