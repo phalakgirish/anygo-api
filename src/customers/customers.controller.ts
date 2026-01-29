@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Put, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Post, Put, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CreateCustomerDto } from './dto/create-customer.dto';
 import { AuthService } from 'src/auth/auth.service';
@@ -46,5 +46,12 @@ export class CustomersController {
     return {
       message: 'Logged out successfully',
     };
+  }
+
+  @UseGuards(CustomerGuard)
+  @ApiBearerAuth()
+  @Delete('delete-account')
+  deleteAccount(@Req() req) {
+    return this.customersService.deleteCustomerAccount(req.customerId);
   }
 }
