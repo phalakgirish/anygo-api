@@ -70,8 +70,9 @@ export class BookingController {
     return this.bookingService.getVehiclePricing(vehicleType);
   }
 
-  @Post(':bookingId/payment-method')
+  @ApiBearerAuth()
   @UseGuards(CustomerGuard)
+  @Post(':bookingId/payment-method')
   async setPaymentMethod(
     @Param('bookingId') bookingId: string,
     @Body('paymentMethod') paymentMethod: 'ONLINE' | 'CASH',
