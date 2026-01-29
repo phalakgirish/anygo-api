@@ -16,6 +16,10 @@ import { Vehicle } from 'src/master/schemas/vehicle.schema';
 import { DriversService } from 'src/drivers/drivers.service';
 import { Customer } from '../schemas/customer.schema';
 import { BookingEstimate, BookingEstimateDocument } from './schemas/booking-estimate.schema';
+import { PaymentStatus } from './dto/payment-status.dto';
+import { Cron } from '@nestjs/schedule';
+
+const BOOKING_EXPIRY_MIN = 2; // 2 minutes
 
 @Injectable()
 export class BookingService {
@@ -245,6 +249,7 @@ export class BookingService {
       loadingRequired: dto.loadingRequired === true,
       labourCount: dto.loadingRequired ? dto.labourCount ?? 0 : 0,
       status: BookingStatus.SEARCHING_DRIVER,
+      expiresAt: new Date(Date.now() + BOOKING_EXPIRY_MIN * 60 * 1000),
     });
 
     // 🔍 Find nearby drivers
@@ -419,5 +424,26 @@ export class BookingService {
     }
 
     return this.pricingModel.find(filter).sort({ vehicleType: 1 });
+  }
+
+  async setPaymentMethod(
+    bookingId: string,
+    paymentMethod: 'ONLINE' | 'CASH',
+  ) {
+    return this.bookingModel.updateOne(
+      { _id: bookingId },
+      {
+        paymentMethod,
+        paymentStatus: PaymentStatus.PENDING,
+      },
+    );
+  }
+
+  @Cron('*/1 * * * *') // every 1 minutes
+  async cleanRejectedBookings() {
+    await this.bookingModel.deleteMany({
+      status: { $in: ['DRIVER_NOTIFIED', 'REJECTED', 'NO_DRIVER_FOUND'] },
+      createdAt: { $lt: new Date(Date.now() - 2 * 60 * 1000) },
+    });
   }
 }

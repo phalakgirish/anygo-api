@@ -299,8 +299,9 @@ export class DriversService {
     // CHECK BOOKINGS AFTER ALL FILTERS
     const bookings = await this.bookingModel.find({
       status: BookingStatus.DRIVER_NOTIFIED,
-      rejectedDrivers: { $ne: driverId },
+      rejectedDrivers: {  $ne: driverId },
       vehicleType: driver.vehicleType,
+       expiresAt: { $gt: new Date() }, 
     });
 
     return bookings;
@@ -325,7 +326,8 @@ export class DriversService {
       {
         _id: bookingId,
         status: BookingStatus.DRIVER_NOTIFIED,
-        // rejectedDrivers: { $ne: new Types.ObjectId(driverId) },
+        rejectedDrivers: { $ne: new Types.ObjectId(driverId) },
+        expiresAt: { $gt: new Date() },
       },
       {
         $set: {
@@ -396,6 +398,9 @@ export class DriversService {
     await this.bookingModel.updateOne(
       {
         _id: bookingId,
+        status: 'DRIVER_NOTIFIED',
+         rejectedDrivers: { $ne: new Types.ObjectId(driverId) },
+         expiresAt: { $gt: new Date() },
       },
       {
         $addToSet: { rejectedDrivers: driverId },
@@ -404,7 +409,7 @@ export class DriversService {
 
     return { message: 'Booking rejected' };
   }
-
+  
   // START TRIP
   async startTrip(driverId: string, bookingId: string) {
     const booking = await this.bookingModel.findOneAndUpdate(
@@ -507,7 +512,7 @@ export class DriversService {
     }
 
     // 5️⃣ Payment handling (MAIN FIX)
-    booking.paymentMethod = booking.paymentMethod;
+    // booking.paymentMethod = booking.paymentMethod;
 
     if (booking.paymentMethod === 'ONLINE') {
       booking.razorpayPaymentId = booking.razorpayPaymentId;

@@ -69,4 +69,16 @@ export class BookingController {
   getVehiclePricing(@Query('vehicleType') vehicleType: string,) {
     return this.bookingService.getVehiclePricing(vehicleType);
   }
+
+  @Post(':bookingId/payment-method')
+  @UseGuards(CustomerGuard)
+  async setPaymentMethod(
+    @Param('bookingId') bookingId: string,
+    @Body('paymentMethod') paymentMethod: 'ONLINE' | 'CASH',
+  ) {
+    return this.bookingService.setPaymentMethod(
+      bookingId,
+      paymentMethod,
+    );
+  }
 }

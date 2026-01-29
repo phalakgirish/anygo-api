@@ -1,5 +1,5 @@
 import { Prop, SchemaFactory, Schema } from "@nestjs/mongoose";
-import { Document, Types } from "mongoose";
+import mongoose, { Document, Types } from "mongoose";
 import { BookingStatus } from "../dto/booking-status.dto";
 import { PaymentStatus } from "../dto/payment-status.dto";
 
@@ -77,7 +77,7 @@ export class Booking extends Document {
   driverName: string;
 
   @Prop({ type: [String], default: [] })
-  rejectedDrivers: string[];
+  rejectedDrivers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Driver' }]
 
   @Prop({
     type: {
@@ -168,6 +168,9 @@ export class Booking extends Document {
 
   @Prop({ default: 0 })
   loadingCharge?: number;
+
+  @Prop({ type: Date })
+  expiresAt: Date;
 
 }
 
