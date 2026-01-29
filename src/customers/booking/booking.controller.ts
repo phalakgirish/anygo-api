@@ -1,4 +1,4 @@
-import { Controller, Post, Body, UseGuards, Req, Get, Param } from '@nestjs/common';
+import { Controller, Post, Body, UseGuards, Req, Get, Param, Query } from '@nestjs/common';
 import { BookingService } from './booking.service';
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiParam, ApiResponse } from '@nestjs/swagger';
 import { CustomerGuard } from '../customer.guard';
@@ -61,5 +61,12 @@ export class BookingController {
   @Post('current/cancel')
   cancelCurrentBooking(@Req() req) {
     return this.bookingService.cancelCurrentBooking(req.customerId);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(CustomerGuard)
+  @Get('vehicle-pricing')
+  getVehiclePricing(@Query('vehicleType') vehicleType: string,) {
+    return this.bookingService.getVehiclePricing(vehicleType);
   }
 }

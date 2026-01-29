@@ -310,6 +310,7 @@ export class BookingService {
           BookingStatus.DRIVER_ASSIGNED,
           BookingStatus.TRIP_STARTED,
           BookingStatus.NO_DRIVER_FOUND,
+          BookingStatus.TRIP_COMPLETED,
         ],
       },
     }).sort({ createdAt: -1 });
@@ -407,5 +408,16 @@ export class BookingService {
       distanceKm: booking.distanceKm,
       finalFare: booking.finalFare,
     };
+  }
+  
+  // Vehicle pricing
+  async getVehiclePricing(vehicleType?: string) {
+    const filter: any = {};
+
+    if (vehicleType) {
+      filter.vehicleType = vehicleType;
+    }
+
+    return this.pricingModel.find(filter).sort({ vehicleType: 1 });
   }
 }
