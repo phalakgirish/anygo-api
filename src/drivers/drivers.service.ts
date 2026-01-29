@@ -244,7 +244,7 @@ export class DriversService {
 
     await this.driverModel.findByIdAndUpdate(driverId, {
       isOnline: dto.isOnline,
-      isAvailable: dto.isOnline,
+      isAvailable: driver.isOnTrip ? false : dto.isOnline,
     });
 
     //Driver Goes Online - Notify Bookings
@@ -506,16 +506,16 @@ export class DriversService {
       );
     }
 
-    if (booking.paymentMethod === 'ONLINE') {
-      //Store Razorpay details
-      booking.razorpayPaymentId;
-      booking.razorpayOrderId;
-      booking.razorpaySignature;
+    // 5️⃣ Payment handling (MAIN FIX)
+    booking.paymentMethod = booking.paymentMethod;
 
+    if (booking.paymentMethod === 'ONLINE') {
+      booking.razorpayPaymentId = booking.razorpayPaymentId;
+      booking.razorpayOrderId = booking.razorpayOrderId;
+      booking.razorpaySignature = booking.razorpaySignature;
       booking.paymentStatus = PaymentStatus.SUCCESS;
     } else {
-      // CASH payment
-      booking.paymentMethod = 'CASH';
+      // CASH
       booking.paymentStatus = PaymentStatus.SUCCESS;
     }
 

@@ -108,7 +108,7 @@ export class OwnerService {
     }
 
     const baseUrl = 'http://localhost:3000/uploads';
-    const driverFolder = `driver-documents/${driver._id}`;
+    // const driverFolder = `driver-documents/${driver._id}`;
 
     return {
       driver: {
@@ -137,19 +137,19 @@ export class OwnerService {
             verified: driver.documents.verified || false,
 
             aadhaar: driver.documents.aadhaar
-              ? `${baseUrl}/${driverFolder}/${driver.documents.aadhaar}`
+              ? `${baseUrl}/${driver.documents.aadhaar}`
               : null,
 
             panCard: driver.documents.panCard
-              ? `${baseUrl}/${driverFolder}/${driver.documents.panCard}`
+              ? `${baseUrl}/${driver.documents.panCard}`
               : null,
 
             licenseFront: driver.documents.licenseFront
-              ? `${baseUrl}/${driverFolder}/${driver.documents.licenseFront}`
+              ? `${baseUrl}/${driver.documents.licenseFront}`
               : null,
 
             licenseBack: driver.documents.licenseBack
-              ? `${baseUrl}/${driverFolder}/${driver.documents.licenseBack}`
+              ? `${baseUrl}/${driver.documents.licenseBack}`
               : null,
           }
           : null,
