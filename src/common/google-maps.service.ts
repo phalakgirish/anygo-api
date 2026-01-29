@@ -25,28 +25,32 @@ export class GoogleMapsService {
     dropLat: number,
     dropLng: number,
   ) {
-    const response = await this.client.distancematrix({
-      params: {
-        origins: [{ lat: pickupLat, lng: pickupLng }],
-        destinations: [{ lat: dropLat, lng: dropLng }],
-        key: this.apiKey,
-      },
-    });
+    try {
+      const response = await this.client.distancematrix({
+        params: {
+          origins: [{ lat: pickupLat, lng: pickupLng }],
+          destinations: [{ lat: dropLat, lng: dropLng }],
+          key: this.apiKey,
+        },
+      });
 
-    const element = response.data.rows[0].elements[0];
+      const element = response.data.rows?.[0]?.elements?.[0];
 
-    if (element.status !== 'OK') {
-      throw new BadRequestException('Route not found');
+      if (!element || element.status !== 'OK') {
+        throw new BadRequestException('Route not found');
+      }
+
+      return {
+        distanceKm: element.distance.value / 1000,
+        durationMin: Math.ceil(element.duration.value / 60),
+      };
+    } catch (error) {
+      console.error('Google Maps Error:', error.response?.data || error.message);
+
+      throw new BadRequestException(
+        'Unable to calculate route. Please try again.',
+      );
     }
-
-    return {
-      distanceKm: element.distance.value / 1000,
-      durationMin: Math.ceil(element.duration.value / 60),
-    };
-  }
-
-  isOutstation(distanceKm: number): boolean {
-    return distanceKm > 30;
   }
 
   //Geo reverse code
@@ -69,7 +73,7 @@ export class GoogleMapsService {
       const city = result.address_components.find(comp =>
         comp.types.includes(AddressType.locality),
       );
-      if (city) return city.long_name;
+      if (city) return this.normalizeCityName(city.long_name);
     }
 
     // 2️. District (very common in India)
@@ -77,7 +81,7 @@ export class GoogleMapsService {
       const district = result.address_components.find(comp =>
         comp.types.includes(AddressType.administrative_area_level_2),
       );
-      if (district) return district.long_name;
+      if (district) return this.normalizeCityName(district.long_name);
     }
 
     // 3️. State (extreme fallback)
@@ -85,7 +89,7 @@ export class GoogleMapsService {
       const state = result.address_components.find(comp =>
         comp.types.includes(AddressType.administrative_area_level_1),
       );
-      if (state) return state.long_name;
+      if (state) return this.normalizeCityName(state.long_name);
     }
 
     throw new BadRequestException('City not found from coordinates');
@@ -107,6 +111,17 @@ export class GoogleMapsService {
 
   deg2rad(deg: number): number {
     return deg * (Math.PI / 180);
+  }
+
+  private normalizeCityName(city: string): string {
+    return city
+      .toLowerCase()
+      .replace('greater ', '')
+      .replace('suburban', '')
+      .replace(' city', '')
+      .split(',')[0]
+      .trim()
+      .replace(/\b\w/g, char => char.toUpperCase());
   }
 
 }

@@ -15,6 +15,11 @@ import { City, CityDocument } from 'src/master/schemas/city.schema';
 import { Vehicle } from 'src/master/schemas/vehicle.schema';
 import { DriversService } from 'src/drivers/drivers.service';
 import { Customer } from '../schemas/customer.schema';
+import { BookingEstimate, BookingEstimateDocument } from './schemas/booking-estimate.schema';
+import { PaymentStatus } from './dto/payment-status.dto';
+import { Cron } from '@nestjs/schedule';
+
+const BOOKING_EXPIRY_MIN = 2; // 2 minutes
 
 @Injectable()
 export class BookingService {
@@ -30,6 +35,7 @@ export class BookingService {
     @InjectModel(City.name) private CityModel: Model<CityDocument>,
     @InjectModel('Vehicle') private readonly vehicleModel: Model<Vehicle>,
     @InjectModel('Customer') private readonly customerModel: Model<Customer>,
+    @InjectModel(BookingEstimate.name) private readonly bookingEstimateModel: Model<BookingEstimateDocument>,
   ) { }
 
   // STEP 1: route check (NO DB)
@@ -48,7 +54,7 @@ export class BookingService {
     };
   }
 
-  async getEstimate(dto: BookingEstimateDto) {
+  async getEstimate(customerId: string, dto: BookingEstimateDto) {
     const { distanceKm, durationMin } =
       await this.mapsService.getDistanceAndDuration(
         dto.pickupLat,
@@ -62,6 +68,29 @@ export class BookingService {
       dto.pickupLng,
     );
 
+    // ✅ City must be active
+    const cityExists = await this.CityModel.findOne({
+      name: city,
+      isActive: true,
+    });
+
+    if (!cityExists) {
+      throw new BadRequestException({
+        code: 'CITY_NOT_SUPPORTED',
+        message: 'Service not available in this city',
+      });
+    }
+
+    // ✅ STORE RECEIVER INFO HERE
+    await this.bookingEstimateModel.findOneAndUpdate(
+      { customerId },
+      {
+        receiverName: dto.receiverName?.trim(),
+        receiverMobile: dto.receiverMobile?.trim(),
+      },
+      { upsert: true, new: true },
+    );
+
     const vehicles = await this.vehicleModel.find({ isActive: true });
 
     const pricingList = await this.pricingModel.find({
@@ -69,56 +98,85 @@ export class BookingService {
       isActive: true,
     });
 
-    const isBookingForOther =
-      !!dto.receiverName && !!dto.receiverMobile;
+    const availableVehicles: {
+      vehicleType: string;
+      estimatedFare: number | null;
+      etaMin: number;
+      driversAvailable: number;
+    }[] = [];
+
+    for (const vehicle of vehicles) {
+      // 🔥 USE EXISTING GEO FUNCTION
+      let drivers = await this.driversService.findNearbyDrivers({
+        pickupLat: dto.pickupLat,
+        pickupLng: dto.pickupLng,
+        vehicleType: vehicle.vehicleType,
+        radiusKm: 3,
+      });
+
+      if (!drivers.length) {
+        drivers = await this.driversService.findNearbyDrivers({
+          pickupLat: dto.pickupLat,
+          pickupLng: dto.pickupLng,
+          vehicleType: vehicle.vehicleType,
+          radiusKm: 5,
+        });
+      }
+
+      if (!drivers.length) {
+        drivers = await this.driversService.findNearbyDrivers({
+          pickupLat: dto.pickupLat,
+          pickupLng: dto.pickupLng,
+          vehicleType: vehicle.vehicleType,
+          radiusKm: 10,
+        });
+      }
+
+      if (!drivers.length) continue; // 🚫 hide vehicle
+
+      const AVERAGE_SPEED_KMPH = 30;
+
+      const nearestDriver = drivers[0]; // closest one
+
+      const etaMin = Math.ceil(
+        ((nearestDriver.distanceMeters / 1000) / AVERAGE_SPEED_KMPH) * 60
+      );
+
+      const pricing = pricingList.find(
+        p => p.vehicleType === vehicle.vehicleType,
+      );
+
+      let estimatedFare: number | null = null;
+
+      if (pricing) {
+        estimatedFare = Math.round(
+          Number(pricing.baseFare) +
+          distanceKm * Number(pricing.perKmRate),
+        );
+      }
+
+      availableVehicles.push({
+        vehicleType: vehicle.vehicleType,
+        estimatedFare,
+        etaMin,
+        driversAvailable: drivers.length,
+      });
+    }
+
+    // 🚫 No vehicles = no service
+    if (!availableVehicles.length) {
+      throw new BadRequestException(
+        'No drivers available nearby',
+      );
+    }
 
     return {
       distanceKm,
       durationMin,
       city,
-
-      bookingFor: isBookingForOther ? 'OTHER' : 'SELF',
-
-      receiver: isBookingForOther
-        ? {
-          name: dto.receiverName,
-          mobile: dto.receiverMobile,
-        }
-        : null,
-
-      vehicles: vehicles.map(vehicle => {
-        const pricing = pricingList.find(
-          p => p.vehicleType === vehicle.vehicleType,
-        );
-
-        let estimatedFare: number | null = null;
-
-        if (pricing) {
-          const baseFare = Number(pricing.baseFare);
-          const perKmRate = Number(pricing.perKmRate);
-          const distance = Number(distanceKm);
-
-          if (
-            Number.isFinite(baseFare) &&
-            Number.isFinite(perKmRate) &&
-            Number.isFinite(distance)
-          ) {
-            estimatedFare = Math.round(
-              baseFare + distance * perKmRate
-            );
-          }
-        }
-
-        return {
-          vehicleType: vehicle.vehicleType,
-          estimatedFare,
-          etaMin: durationMin,
-        };
-      }),
-
+      vehicles: availableVehicles,
     };
   }
-
 
   // 3️⃣ CREATE BOOKING + DISPATCH
   async createBooking(customerId: string, dto: SelectVehicleDto) {
@@ -131,10 +189,34 @@ export class BookingService {
         dto.dropLng,
       );
 
-    const city = await this.mapsService.getCityFromLatLng(
+    const pickupCity = await this.mapsService.getCityFromLatLng(
       dto.pickupLat,
       dto.pickupLng,
     );
+
+    // ✅ Check city exists in master
+    const cityExists = await this.CityModel.findOne({
+      name: pickupCity,
+      isActive: true,
+    });
+
+    if (!cityExists) {
+      throw new BadRequestException(
+        'Booking is not available for this city',
+      );
+    }
+
+    // ✅ Check drivers exist for this city
+    const driverExistsInCity = await this.driverModel.exists({
+      city: pickupCity,
+      isOnline: true,
+    });
+
+    if (!driverExistsInCity) {
+      throw new BadRequestException(
+        'Booking is not available for this city',
+      );
+    }
 
     const customer = await this.customerModel
       .findById(customerId)
@@ -148,26 +230,53 @@ export class BookingService {
     const customerName = `${customer.firstName ?? ''} ${customer.lastName ?? ''}`.trim();
     const customerMobile = customer.mobile;
 
+    const estimate = await this.bookingEstimateModel
+      .findOne({ customerId })
+      .lean();
+
     const booking = await this.bookingModel.create({
       customerId,
-      city,
+      city: pickupCity,
       customerName,
       customerMobile,
+      receiverName: estimate?.receiverName || customerName,
+      receiverMobile: estimate?.receiverMobile || customerMobile,
       pickupLocation: { lat: dto.pickupLat, lng: dto.pickupLng },
       dropLocation: { lat: dto.dropLat, lng: dto.dropLng },
       vehicleType: dto.vehicleType,
       distanceKm,
       durationMin,
+      loadingRequired: dto.loadingRequired === true,
+      labourCount: dto.loadingRequired ? dto.labourCount ?? 0 : 0,
       status: BookingStatus.SEARCHING_DRIVER,
+      expiresAt: new Date(Date.now() + BOOKING_EXPIRY_MIN * 60 * 1000),
     });
 
     // 🔍 Find nearby drivers
-    const drivers = await this.driversService.findNearbyDrivers({
+    let drivers = await this.driversService.findNearbyDrivers({
       pickupLat: dto.pickupLat,
       pickupLng: dto.pickupLng,
       vehicleType: dto.vehicleType,
       radiusKm: 3,
     });
+
+    if (!drivers.length) {
+      drivers = await this.driversService.findNearbyDrivers({
+        pickupLat: dto.pickupLat,
+        pickupLng: dto.pickupLng,
+        vehicleType: dto.vehicleType,
+        radiusKm: 5,
+      });
+    }
+
+    if (!drivers.length) {
+      drivers = await this.driversService.findNearbyDrivers({
+        pickupLat: dto.pickupLat,
+        pickupLng: dto.pickupLng,
+        vehicleType: dto.vehicleType,
+        radiusKm: 10,
+      });
+    }
 
     if (!drivers.length) {
       booking.status = BookingStatus.NO_DRIVER_FOUND;
@@ -189,6 +298,9 @@ export class BookingService {
     booking.status = BookingStatus.DRIVER_NOTIFIED;
     await booking.save();
 
+    // ✅ CLEANUP TEMP ESTIMATE (CORRECT PLACE)
+    await this.bookingEstimateModel.deleteOne({ customerId });
+
     return { bookingId: booking._id };
   }
 
@@ -203,6 +315,7 @@ export class BookingService {
           BookingStatus.DRIVER_ASSIGNED,
           BookingStatus.TRIP_STARTED,
           BookingStatus.NO_DRIVER_FOUND,
+          BookingStatus.TRIP_COMPLETED,
         ],
       },
     }).sort({ createdAt: -1 });
@@ -259,5 +372,78 @@ export class BookingService {
     }
 
     return { message: 'Booking cancelled successfully' };
+  }
+
+  // 9. Customer Live Tracking
+  async getCurrentLiveBooking(customerId: string) {
+    const booking = await this.findCurrentBooking(customerId);
+
+    if (!booking) {
+      return { status: 'NO_ACTIVE_BOOKING' };
+    }
+
+    const driver = booking.driverId
+      ? await this.driverModel.findById(booking.driverId)
+      : null;
+
+    return {
+      _id: booking._id,
+      status: booking.status,
+
+      pickupLocation: booking.pickupLocation,
+      dropLocation: booking.dropLocation,
+
+      driver: driver
+        ? {
+          name: driver.firstName,
+          phone: driver.mobile,
+          vehicleNumber: driver.vehicleNumber,
+          currentLocation: driver.currentLocation?.coordinates?.length
+            ? {
+              lat: driver.currentLocation.coordinates[1],
+              lng: driver.currentLocation.coordinates[0],
+            }
+            : null,
+        }
+        : null,
+      routePath: booking.routePath, // ✅ IMPORTANT
+
+      driverToPickupEtaMin: booking.driverToPickupEtaMin,
+      pickupToDropEtaMin: booking.pickupToDropEtaMin,
+      distanceKm: booking.distanceKm,
+      finalFare: booking.finalFare,
+    };
+  }
+  
+  // Vehicle pricing
+  async getVehiclePricing(vehicleType?: string) {
+    const filter: any = {};
+
+    if (vehicleType) {
+      filter.vehicleType = vehicleType;
+    }
+
+    return this.pricingModel.find(filter).sort({ vehicleType: 1 });
+  }
+
+  async setPaymentMethod(
+    bookingId: string,
+    paymentMethod: 'ONLINE' | 'CASH',
+  ) {
+    return this.bookingModel.updateOne(
+      { _id: bookingId },
+      {
+        paymentMethod,
+        paymentStatus: PaymentStatus.PENDING,
+      },
+    );
+  }
+
+  @Cron('*/1 * * * *') // every 1 minutes
+  async cleanRejectedBookings() {
+    await this.bookingModel.deleteMany({
+      status: { $in: ['DRIVER_NOTIFIED', 'REJECTED', 'NO_DRIVER_FOUND'] },
+      createdAt: { $lt: new Date(Date.now() - 2 * 60 * 1000) },
+    });
   }
 }
