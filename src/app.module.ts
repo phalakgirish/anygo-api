@@ -11,10 +11,11 @@ import { ConfigModule } from '@nestjs/config';
 import { GatewaysModule } from './gateways/gateways.module';
 import { MasterModule } from './master/master.module';
 import { ScheduleModule } from '@nestjs/schedule';
+import { PaymentModule } from './payment/payment.module';
 
 @Module({
   imports: [ MongooseModule.forRoot('mongodb+srv://anygoUser:BOJkZdLjG5Q5Z6pR@anygo.qwztb8w.mongodb.net/Anygo'),OwnerModule, CustomersModule, 
-  DriversModule, AuthModule, CommonModule,MasterModule, 
+  DriversModule, AuthModule, CommonModule,MasterModule,PaymentModule,
   ConfigModule.forRoot({ isGlobal: true,}),GatewaysModule,ScheduleModule.forRoot()],
   controllers: [AppController],
   providers: [AppService],

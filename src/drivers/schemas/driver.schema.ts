@@ -38,7 +38,7 @@ export class Driver {
     @Prop()
     vehicleType: string;
 
-    @Prop({ unique: true })
+    @Prop({ unique: true, sparse: true })
     vehicleNumber: string;
 
     @Prop()
@@ -123,6 +123,9 @@ export class Driver {
 
     @Prop()
     city: string;
+
+    // @Prop({ required: true, default: false })
+    //acceptedTerms: boolean;
 }
 
 export const DriverSchema = SchemaFactory.createForClass(Driver);
