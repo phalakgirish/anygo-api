@@ -299,9 +299,9 @@ export class DriversService {
     // CHECK BOOKINGS AFTER ALL FILTERS
     const bookings = await this.bookingModel.find({
       status: BookingStatus.DRIVER_NOTIFIED,
-      rejectedDrivers: {  $ne: driverId },
+      rejectedDrivers: { $ne: driverId },
       vehicleType: driver.vehicleType,
-       expiresAt: { $gt: new Date() }, 
+      expiresAt: { $gt: new Date() },
     });
 
     return bookings;
@@ -399,8 +399,8 @@ export class DriversService {
       {
         _id: bookingId,
         status: 'DRIVER_NOTIFIED',
-         rejectedDrivers: { $ne: new Types.ObjectId(driverId) },
-         expiresAt: { $gt: new Date() },
+        rejectedDrivers: { $ne: new Types.ObjectId(driverId) },
+        expiresAt: { $gt: new Date() },
       },
       {
         $addToSet: { rejectedDrivers: driverId },
@@ -409,7 +409,7 @@ export class DriversService {
 
     return { message: 'Booking rejected' };
   }
-  
+
   // START TRIP
   async startTrip(driverId: string, bookingId: string) {
     const booking = await this.bookingModel.findOneAndUpdate(
@@ -447,7 +447,6 @@ export class DriversService {
     return { message: 'Trip started' };
   }
 
-  // Complete Trip
   async completeTrip(driverId: string, bookingId: string) {
     const booking = await this.bookingModel.findOne({
       _id: bookingId,
@@ -457,7 +456,7 @@ export class DriversService {
 
     if (!booking) throw new BadRequestException('Invalid trip');
 
-    // 1️⃣ Get pricing (never trust stored fares blindly)
+    // 1️⃣ Pricing
     const pricing = await this.pricingModel.findOne({
       vehicleType: booking.vehicleType,
       isActive: true,
@@ -467,7 +466,7 @@ export class DriversService {
       throw new BadRequestException('Pricing not found');
     }
 
-    // 2️⃣ Core fare calculation
+    // 2️⃣ Fare calculation
     const tripDistanceKm = booking.distanceKm;
     const baseFare = pricing.baseFare;
     const distanceFare = tripDistanceKm * pricing.perKmRate;
@@ -482,17 +481,18 @@ export class DriversService {
       pricing.loadingChargePerLabour &&
       labourCount > 0
     ) {
-      loadingCharge =
-        pricing.loadingChargePerLabour * labourCount;
+      loadingCharge = pricing.loadingChargePerLabour * labourCount;
     }
 
-    const finalFare =
-      Math.round(baseFare + distanceFare + pickupCharge + loadingCharge);
+    const finalFare = Math.round(
+      baseFare + distanceFare + pickupCharge + loadingCharge
+    );
 
-    // 3️⃣ Platform commission
+    // 3️⃣ Commission
     const commissionPercent = pricing.commissionPercent || 20;
-    const commissionAmount =
-      Math.round((finalFare * commissionPercent) / 100);
+    const commissionAmount = Math.round(
+      (finalFare * commissionPercent) / 100
+    );
 
     const driverEarning = finalFare - commissionAmount;
 
@@ -501,9 +501,9 @@ export class DriversService {
     booking.tripEndTime = new Date();
     booking.finalFare = finalFare;
     booking.driverEarning = driverEarning;
-    booking.fareFinalizedAt = new Date();
     booking.platformCommission = commissionAmount;
     booking.loadingCharge = loadingCharge;
+    booking.fareFinalizedAt = new Date();
 
     if (booking.tripStartTime) {
       booking.actualDurationMin = Math.ceil(
@@ -511,22 +511,17 @@ export class DriversService {
       );
     }
 
-    // 5️⃣ Payment handling (MAIN FIX)
-    // booking.paymentMethod = booking.paymentMethod;
-
-    if (booking.paymentMethod === 'ONLINE') {
-      booking.razorpayPaymentId = booking.razorpayPaymentId;
-      booking.razorpayOrderId = booking.razorpayOrderId;
-      booking.razorpaySignature = booking.razorpaySignature;
-      booking.paymentStatus = PaymentStatus.SUCCESS;
-    } else {
-      // CASH
+    // 💵 CASH → instantly success
+    if (booking.paymentMethod === 'CASH') {
       booking.paymentStatus = PaymentStatus.SUCCESS;
     }
 
+    // 💳 ONLINE → keep PENDING, DO NOT BLOCK
+    // payment will be updated in /payment/verify
+
     await booking.save();
 
-    // 5️⃣ Update driver status
+    // 5️⃣ Driver status
     await this.driverModel.findByIdAndUpdate(driverId, {
       isAvailable: true,
       isOnTrip: false,
@@ -537,7 +532,7 @@ export class DriversService {
       $inc: { walletBalance: driverEarning },
     });
 
-    // 7️⃣ Stop live tracking
+    // 7️⃣ Stop tracking
     this.liveGateway.stopTracking(bookingId);
 
     return {
@@ -556,6 +551,126 @@ export class DriversService {
       },
     };
   }
+  //   async completeTrip(driverId: string, bookingId: string) {
+  //     const booking = await this.bookingModel.findOne({
+  //       _id: bookingId,
+  //       driverId,
+  //       status: BookingStatus.TRIP_STARTED,
+  //     });
+
+  //     if (!booking) throw new BadRequestException('Invalid trip');
+
+  //     // 1️⃣ Get pricing (never trust stored fares blindly)
+  //     const pricing = await this.pricingModel.findOne({
+  //       vehicleType: booking.vehicleType,
+  //       isActive: true,
+  //     });
+
+  //     if (!pricing) {
+  //       throw new BadRequestException('Pricing not found');
+  //     }
+
+  //     // 2️⃣ Core fare calculation
+  //     const tripDistanceKm = booking.distanceKm;
+  //     const baseFare = pricing.baseFare;
+  //     const distanceFare = tripDistanceKm * pricing.perKmRate;
+  //     const pickupCharge = booking.pickupCharge || 0;
+
+  //     let loadingCharge = 0;
+  //     const labourCount = booking.labourCount ?? 0;
+
+  //     if (
+  //       booking.loadingRequired &&
+  //       pricing.isLoadingAvailable &&
+  //       pricing.loadingChargePerLabour &&
+  //       labourCount > 0
+  //     ) {
+  //       loadingCharge =
+  //         pricing.loadingChargePerLabour * labourCount;
+  //     }
+
+  //     const finalFare =
+  //       Math.round(baseFare + distanceFare + pickupCharge + loadingCharge);
+
+  //     // 3️⃣ Platform commission
+  //     const commissionPercent = pricing.commissionPercent || 20;
+  //     const commissionAmount =
+  //       Math.round((finalFare * commissionPercent) / 100);
+
+  //     const driverEarning = finalFare - commissionAmount;
+
+  //     // 4️⃣ Update booking
+  //     booking.status = BookingStatus.TRIP_COMPLETED;
+  //     booking.tripEndTime = new Date();
+  //     booking.finalFare = finalFare;
+  //     booking.driverEarning = driverEarning;
+  //     booking.fareFinalizedAt = new Date();
+  //     booking.platformCommission = commissionAmount;
+  //     booking.loadingCharge = loadingCharge;
+
+  //     if (booking.tripStartTime) {
+  //       booking.actualDurationMin = Math.ceil(
+  //         (Date.now() - booking.tripStartTime.getTime()) / 60000
+  //       );
+  //     }
+
+  //     // 5️⃣ Payment handling (MAIN FIX)
+  //     // booking.paymentMethod = booking.paymentMethod;
+
+  //     // if (booking.paymentMethod === 'ONLINE') {
+  //     //   booking.razorpayPaymentId = booking.razorpayPaymentId;
+  //     //   booking.razorpayOrderId = booking.razorpayOrderId;
+  //     //   booking.razorpaySignature = booking.razorpaySignature;
+  //     //   booking.paymentStatus = PaymentStatus.SUCCESS;
+  //     // }
+
+
+  // // 🔐 PAYMENT FINALIZATION (FIXED)
+  // if (booking.paymentMethod === 'ONLINE') {
+  //   if (booking.paymentStatus !== PaymentStatus.SUCCESS) {
+  //     throw new BadRequestException('Online payment not completed');
+  //   }
+  // }
+
+  // // 💵 CASH payment auto-success
+  // if (booking.paymentMethod === 'CASH') {
+  //   booking.paymentStatus = PaymentStatus.SUCCESS;
+  // }
+
+
+
+  //     await booking.save();
+
+  //     // 5️⃣ Update driver status
+  //     await this.driverModel.findByIdAndUpdate(driverId, {
+  //       isAvailable: true,
+  //       isOnTrip: false,
+  //     });
+
+  //     // 6️⃣ Wallet credit
+  //     await this.driverModel.findByIdAndUpdate(driverId, {
+  //       $inc: { walletBalance: driverEarning },
+  //     });
+
+  //     // 7️⃣ Stop live tracking
+  //     this.liveGateway.stopTracking(bookingId);
+
+  //     return {
+  //       message: 'Trip completed successfully',
+  //       fare: {
+  //         finalFare,
+  //         pickupCharge,
+  //         loadingCharge,
+  //         distanceFare,
+  //         driverEarning,
+  //         platformCommission: commissionAmount,
+  //       },
+  //       payment: {
+  //         method: booking.paymentMethod,
+  //         status: booking.paymentStatus,
+  //       },
+  //     };
+  //   }
 
   // ================= UPDATE DRIVER LOCATION =================
   async updateLocation(driverId: string, dto: UpdateLocationDto,) {
