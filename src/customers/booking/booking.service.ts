@@ -430,12 +430,19 @@ export class BookingService {
     bookingId: string,
     paymentMethod: 'ONLINE' | 'CASH',
   ) {
+    const update: any = {
+      paymentMethod,
+      paymentStatus: PaymentStatus.PENDING,
+    };
+
+    // ✅ AUTO-SUCCESS FOR CASH
+    if (paymentMethod === 'CASH') {
+      update.paymentStatus = PaymentStatus.SUCCESS;
+    }
+
     return this.bookingModel.updateOne(
       { _id: bookingId },
-      {
-        paymentMethod,
-        paymentStatus: PaymentStatus.PENDING,
-      },
+      update,
     );
   }
 

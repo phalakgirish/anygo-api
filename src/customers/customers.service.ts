@@ -191,5 +191,30 @@ export class CustomersService {
     };
   }
 
+  // Delete Customer Account
+    async deleteCustomerAccount(customerId: string) {
+      const customer = await this.customerModel.findById(customerId);
+      if (!customer) {
+        throw new NotFoundException('Customer not found');
+      }
+  
+      const activeBooking = await this.bookingModel.exists({
+        customerId,
+        status: { $in: ['SEARCHING_DRIVER', 'TRIP_STARTED'] },
+      });
+
+      if (activeBooking) {
+        throw new BadRequestException(
+          'Cannot delete account with an active booking',
+        );
+      }
+
+      // Customer driver
+      await this.customerModel.findByIdAndDelete(customerId);
+  
+      return {
+        message: 'Customer account deleted permanently',
+      };
+    }
 }
 
