@@ -20,7 +20,6 @@ export class PaymentService {
         });
     }
 
-
     async createOrder(bookingId: string) {
         const booking = await this.bookingModel.findById(bookingId);
 
