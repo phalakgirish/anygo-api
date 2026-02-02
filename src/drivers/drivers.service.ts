@@ -447,6 +447,7 @@ export class DriversService {
     return { message: 'Trip started' };
   }
 
+  // Complete trip 
   async completeTrip(driverId: string, bookingId: string) {
     const booking = await this.bookingModel.findOne({
       _id: bookingId,
@@ -1250,6 +1251,29 @@ export class DriversService {
     return {
       message: 'Documents updated successfully',
       documents: updatedDocs,
+    };
+  }
+
+  // Get Bank Details
+  async getDriverBankDetails(driverId: string) {
+    const driver = await this.driverModel.findById(driverId).select(
+      'bankDetails'
+    );
+
+    if (!driver) {
+      throw new BadRequestException('Driver not found');
+    }
+
+    if (!driver.bankDetails || !driver.bankDetails.bankAccountNumber) {
+      return {
+        hasBankDetails: false,
+        message: 'Bank details not added yet',
+      };
+    }
+
+    return {
+      hasBankDetails: true,
+      bankDetails: driver.bankDetails,
     };
   }
 
