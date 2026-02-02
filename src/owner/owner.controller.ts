@@ -39,9 +39,11 @@ export class OwnerController {
   // All Drivers 
   @ApiBearerAuth()
   @UseGuards(OwnerJwtGuard)
+  @ApiQuery({ name: 'page', required: false })
+  @ApiQuery({ name: 'limit', required: false })
   @Get('drivers')
-  getDrivers() {
-    return this.ownerService.getAllDrivers();
+  getDrivers( @Query('page') page = 1, @Query('limit') limit = 10,) {
+    return this.ownerService.getAllDrivers( Number(page), Number(limit),);
   }
 
   // Driver full details
@@ -74,17 +76,21 @@ export class OwnerController {
   // Customer Booking
   @ApiBearerAuth()
   @UseGuards(OwnerJwtGuard)
+  @ApiQuery({ name: 'page', required: false })
+  @ApiQuery({ name: 'limit', required: false })
   @Get('bookings')
-  getAllBookings() {
-    return this.ownerService.getAllBookings();
+  getAllBookings(@Query('page') page = 1, @Query('limit') limit = 10,) {
+    return this.ownerService.getAllBookings(Number(page), Number(limit),);
   }
 
   // Trip Management (Driver-wise)
   @ApiBearerAuth()
   @UseGuards(OwnerJwtGuard)
+  @ApiQuery({ name: 'page', required: false })
+  @ApiQuery({ name: 'limit', required: false })
   @Get('trips/management')
-  getTripManagement() {
-    return this.ownerService.getTripManagement();
+  getTripManagement(@Query('page') page = 1, @Query('limit') limit = 10,) {
+    return this.ownerService.getTripManagement(Number(page), Number(limit),);
   }
 
   // All Withdrawal Request 
@@ -114,9 +120,21 @@ export class OwnerController {
   // All Customers 
   @ApiBearerAuth()
   @UseGuards(OwnerJwtGuard)
+  @ApiQuery({ name: 'page', required: false })
+  @ApiQuery({ name: 'limit', required: false })
   @Get('all-customers')
-  getCustomers() {
-    return this.ownerService.getAllCustomers();
+  getCustomers(@Query('page') page = 1, @Query('limit') limit = 10,) {
+    return this.ownerService.getAllCustomers(Number(page), Number(limit),);
+  }
+
+  // Ongiong Trips
+  @Get('trips/ongoing')
+  @ApiBearerAuth()
+  @UseGuards(OwnerJwtGuard)
+  @ApiQuery({ name: 'page', required: false })
+  @ApiQuery({ name: 'limit', required: false })
+  getOngoingTrips( @Query('page') page = 1, @Query('limit') limit = 10,) {
+    return this.ownerService.getOngoingTrips( Number(page),Number(limit),);
   }
 
   // Admin Dashboard
@@ -155,10 +173,17 @@ export class OwnerController {
   getDriverPayments(
     @Query('month') month?: number,
     @Query('year') year?: number,
+    @Query('page') page = 1,
+    @Query('limit') limit = 10,
   ) {
     return this.ownerService.getDriverPaymentSummary(
       month ? Number(month) : undefined,
       year ? Number(year) : undefined,
+      undefined,
+      undefined,
+      undefined,
+      Number(page),
+      Number(limit),
     );
   }
 
@@ -217,14 +242,19 @@ export class OwnerController {
   @ApiQuery({ name: 'from', required: false })
   @ApiQuery({ name: 'to', required: false })
   @ApiQuery({ name: 'driverName', required: false })
-  getEarningsReport(@Query('from') from?: string, @Query('to') to?: string,
-    @Query('driverName') driverName?: string,) {
+  getEarningsReport(
+    @Query('from') from?: string, 
+    @Query('to') to?: string,
+    @Query('driverName') driverName?: string,  
+    @Query('page') page = 1, @Query('limit') limit = 10,) {
     return this.ownerService.getDriverPaymentSummary(
       undefined,
       undefined,
       from ? new Date(from) : undefined,
       to ? new Date(to) : undefined,
       driverName,
+      Number(page),
+      Number(limit),
     );
   }
 
