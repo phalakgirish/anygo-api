@@ -72,10 +72,18 @@ export class OwnerService {
   }
 
   // ================= DRIVER LIST (FIXED) =================
-  async getAllDrivers() {
-    const drivers = await this.driverModel
-      .find()
-      .lean();
+  async getAllDrivers(page = 1, limit = 10) {
+    const skip = (page - 1) * limit;
+
+    const [drivers, total] = await Promise.all([
+      this.driverModel
+        .find()
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+
+      this.driverModel.countDocuments(),
+    ]);
 
     return {
       status: true,
@@ -96,6 +104,12 @@ export class OwnerService {
             uploaded: false,
           },
       })),
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
     };
   }
 
@@ -200,11 +214,19 @@ export class OwnerService {
   }
 
   // 6. Customer Booking deatils
-  async getAllBookings() {
-    const bookings = await this.bookingModel
-      .find()
-      .sort({ createdAt: -1 })
-      .lean();
+  async getAllBookings(page = 1, limit = 10) {
+    const skip = (page - 1) * limit;
+
+    const [bookings, total] = await Promise.all([
+      this.bookingModel
+        .find()
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+
+      this.bookingModel.countDocuments(),
+    ]);
 
     // collect all driverIds (only valid ones)
     const driverIds = bookings
@@ -222,7 +244,7 @@ export class OwnerService {
       drivers.map(d => [d._id.toString(), d])
     );
 
-    return Promise.all(
+    const data = await Promise.all(
       bookings.map(async b => {
         const driver = b.driverId
           ? driverMap.get(b.driverId.toString())
@@ -265,15 +287,32 @@ export class OwnerService {
         };
       })
     );
+    return {
+      data,
+      pagination: {
+        totalRecords: total,
+        currentPage: page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
   // 7. TRIP MANAGEMENT (Driver-wise summary)
-  async getTripManagement() {
-    // 1. Get all drivers
-    const drivers = await this.driverModel
-      .find()
-      .select('firstName lastName mobile vehicleType')
-      .lean();
+  async getTripManagement(page = 1, limit = 10) {
+    const skip = (page - 1) * limit;
+
+    // 1. Get paginated drivers
+    const [drivers, total] = await Promise.all([
+      this.driverModel
+        .find()
+        .select('firstName lastName mobile vehicleType')
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+
+      this.driverModel.countDocuments(),
+    ]);
 
     // 2. Get all bookings
     const bookings = await this.bookingModel
@@ -295,7 +334,7 @@ export class OwnerService {
     }
 
     // 4. Prepare response
-    const result = drivers.map(driver => {
+    const data = drivers.map(driver => {
       const driverId = driver._id.toString();
       const driverBookings = bookingMap.get(driverId) || [];
 
@@ -324,7 +363,13 @@ export class OwnerService {
 
     return {
       status: true,
-      data: result,
+      data,
+      pagination: {
+        totalRecords: total,
+        currentPage: page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
     };
   }
 
@@ -387,10 +432,17 @@ export class OwnerService {
   }
 
   //11. CUSTOMER LIST (FIXED) 
-  async getAllCustomers() {
-    const customers = await this.customerModel
+  async getAllCustomers(page = 1, limit = 10) {
+  const skip = (page - 1) * limit;
+
+    const [customers,total] = await Promise.all([this.customerModel
       .find()
-      .lean();
+      .skip(skip)
+      .limit(limit)
+      .lean(),
+
+      this.customerModel.countDocuments(),
+    ]);
 
     return {
       status: true,
@@ -400,6 +452,12 @@ export class OwnerService {
         mobile: customer.mobile,
         email: customer.email
       })),
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
     };
   }
 
@@ -449,19 +507,27 @@ export class OwnerService {
   }
 
   // Ongoing Trips
-  async getOngoingTrips() {
-    const bookings = await this.bookingModel
-      .find({
-        status: {
-          $in: [
-            'DRIVER_NOTIFIED',
-            'DRIVER_ASSIGNED',
-            'TRIP_STARTED',
-          ],
-        },
-      })
-      .sort({ createdAt: -1 })
-      .lean();
+  async getOngoingTrips(page = 1, limit = 10) {
+    const skip = (page - 1) * limit;
+
+    const statusFilter = {
+      $in: [
+        'DRIVER_NOTIFIED',
+        'DRIVER_ASSIGNED',
+        'TRIP_STARTED',
+      ],
+    };
+
+    const [bookings, total] = await Promise.all([
+      this.bookingModel
+        .find({ status: statusFilter })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+
+      this.bookingModel.countDocuments({ status: statusFilter }),
+    ]);
 
     const driverIds = bookings
       .map(b => b.driverId)
@@ -491,7 +557,7 @@ export class OwnerService {
       customers.map(c => [c._id.toString(), c]),
     );
 
-    return Promise.all(
+    const data = await Promise.all(
       bookings.map(async b => {
         const driver = b.driverId
           ? driverMap.get(b.driverId.toString())
@@ -543,8 +609,18 @@ export class OwnerService {
           },
           status: b.status
         };
-      }),
+      }),      
     );
+
+    return {
+      data,
+      pagination: {
+        totalRecords: total,
+        currentPage: page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
   // Month-wose Trip Amount (BAR CHART)
@@ -673,7 +749,16 @@ export class OwnerService {
   }
 
   // 13. Driver Payment (MONTH-WISE)
-  async getDriverPaymentSummary(month?: number, year?: number, from?: Date, to?: Date, driverName?: string,) {
+  async getDriverPaymentSummary(
+    month?: number, 
+    year?: number, 
+    from?: Date, 
+    to?: Date, 
+    driverName?: string,
+    page = 1,
+    limit = 10,) {
+      const skip = (page - 1) * limit;
+
     // Default → current month & year
     const now = new Date();
     const selectedMonth = month ?? now.getMonth() + 1; // 1-12
@@ -695,7 +780,7 @@ export class OwnerService {
         ? [{ $match: { _id: { $in: driverIds } } }]
         : [];
 
-    const data = await this.driverModel.aggregate([
+    const result = await this.driverModel.aggregate([
       // Optional driver filter (ONLY if passed)
       ...driverMatch,
 
@@ -790,12 +875,32 @@ export class OwnerService {
       {
         $sort: { monthWiseEarnings: -1 },
       },
+      {
+        $facet: {
+          data: [
+            { $skip: skip },
+            { $limit: limit },
+          ],
+          totalCount: [
+            { $count: 'count' },
+          ],
+        },
+      },
     ]);
+    
+    const data = result[0]?.data ?? [];
+    const totalRecords = result[0]?.totalCount[0]?.count ?? 0;
 
     return {
       month: selectedMonth,
       year: selectedYear,
       data,
+      pagination: {
+        totalRecords,
+        currentPage: page,
+        limit,
+        totalPages: Math.ceil(totalRecords / limit),
+      },
     };
   }
 
