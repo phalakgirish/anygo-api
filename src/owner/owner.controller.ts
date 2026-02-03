@@ -42,8 +42,8 @@ export class OwnerController {
   @ApiQuery({ name: 'page', required: false })
   @ApiQuery({ name: 'limit', required: false })
   @Get('drivers')
-  getDrivers( @Query('page') page = 1, @Query('limit') limit = 10,) {
-    return this.ownerService.getAllDrivers( Number(page), Number(limit),);
+  getDrivers(@Query('page') page = 1, @Query('limit') limit = 10,) {
+    return this.ownerService.getAllDrivers(Number(page), Number(limit),);
   }
 
   // Driver full details
@@ -133,8 +133,8 @@ export class OwnerController {
   @UseGuards(OwnerJwtGuard)
   @ApiQuery({ name: 'page', required: false })
   @ApiQuery({ name: 'limit', required: false })
-  getOngoingTrips( @Query('page') page = 1, @Query('limit') limit = 10,) {
-    return this.ownerService.getOngoingTrips( Number(page),Number(limit),);
+  getOngoingTrips(@Query('page') page = 1, @Query('limit') limit = 10,) {
+    return this.ownerService.getOngoingTrips(Number(page), Number(limit),);
   }
 
   // Admin Dashboard
@@ -170,6 +170,8 @@ export class OwnerController {
   @Get('payments/drivers')
   @ApiQuery({ name: 'month', required: false })
   @ApiQuery({ name: 'year', required: false })
+  @ApiQuery({ name: 'page', required: false })
+  @ApiQuery({ name: 'limit', required: false })
   getDriverPayments(
     @Query('month') month?: number,
     @Query('year') year?: number,
@@ -188,20 +190,26 @@ export class OwnerController {
   }
 
   // Driver Performance Report
-  @ApiBearerAuth()
-  @UseGuards(OwnerJwtGuard)
   @Get('reports/driver-performance')
   @ApiQuery({ name: 'from', required: false })
   @ApiQuery({ name: 'to', required: false })
   @ApiQuery({ name: 'driverName', required: false })
-  getDriverPerformance(@Query('from') from?: string, @Query('to') to?: string,
-    @Query('driverName') driverName?: string,) {
-    return this.ownerService.getDriverPerformanceReport({
-      from,
-      to,
-      driverName,
-    });
+  @ApiQuery({ name: 'page', required: false })
+  @ApiQuery({ name: 'limit', required: false })
+  getDriverPerformance(
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Query('driverName') driverName?: string,
+    @Query('page') page = 1,
+    @Query('limit') limit = 10,
+  ) {
+    return this.ownerService.getDriverPerformanceReport(
+      { from, to, driverName },
+      Number(page),
+      Number(limit),
+    );
   }
+
 
   // Trip Report
   @ApiBearerAuth()
@@ -210,13 +218,24 @@ export class OwnerController {
   @ApiQuery({ name: 'from', required: false })
   @ApiQuery({ name: 'to', required: false })
   @ApiQuery({ name: 'driverName', required: false })
-  getTripReport(@Query('from') from?: string, @Query('to') to?: string,
-    @Query('driverName') driverName?: string,) {
-    return this.ownerService.getTripReport({
-      from,
-      to,
-      driverName,
-    });
+  @ApiQuery({ name: 'page', required: false })
+  @ApiQuery({ name: 'limit', required: false })
+  getTripReport(
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Query('driverName') driverName?: string,
+    @Query('page') page = '1',
+    @Query('limit') limit = '10',
+  ) {
+    return this.ownerService.getTripReport(
+      {
+        from,
+        to,
+        driverName,
+      },
+      Number(page),
+      Number(limit),
+    );
   }
 
   // Cancellation Report
@@ -226,13 +245,24 @@ export class OwnerController {
   @ApiQuery({ name: 'from', required: false })
   @ApiQuery({ name: 'to', required: false })
   @ApiQuery({ name: 'driverName', required: false })
-  getCancellationReport(@Query('from') from?: string, @Query('to') to?: string,
-    @Query('driverName') driverName?: string,) {
-    return this.ownerService.getCancellationReport({
-      from,
-      to,
-      driverName,
-    });
+  @ApiQuery({ name: 'page', required: false })
+  @ApiQuery({ name: 'limit', required: false })
+  getCancellationReport(
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Query('driverName') driverName?: string,
+    @Query('page') page = '1',
+    @Query('limit') limit = '10',
+  ) {
+    return this.ownerService.getCancellationReport(
+      {
+        from,
+        to,
+        driverName,
+      },
+      Number(page),
+      Number(limit),
+    );
   }
 
   // Earning Report
@@ -242,10 +272,12 @@ export class OwnerController {
   @ApiQuery({ name: 'from', required: false })
   @ApiQuery({ name: 'to', required: false })
   @ApiQuery({ name: 'driverName', required: false })
+  @ApiQuery({ name: 'page', required: false })
+  @ApiQuery({ name: 'limit', required: false })
   getEarningsReport(
-    @Query('from') from?: string, 
+    @Query('from') from?: string,
     @Query('to') to?: string,
-    @Query('driverName') driverName?: string,  
+    @Query('driverName') driverName?: string,
     @Query('page') page = 1, @Query('limit') limit = 10,) {
     return this.ownerService.getDriverPaymentSummary(
       undefined,
@@ -265,15 +297,24 @@ export class OwnerController {
   @ApiQuery({ name: 'from', required: false })
   @ApiQuery({ name: 'to', required: false })
   @ApiQuery({ name: 'driverName', required: false })
+  @ApiQuery({ name: 'page', required: false })
+  @ApiQuery({ name: 'limit', required: false })
   getPaymentReport(
-    @Query('from') from?: string, @Query('to') to?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
     @Query('driverName') driverName?: string,
+    @Query('page') page = '1',
+    @Query('limit') limit = '10',
   ) {
-    return this.ownerService.getPaymentReport({
-      from,
-      to,
-      driverName
-    });
+    return this.ownerService.getPaymentReport(
+      {
+        from,
+        to,
+        driverName,
+      },
+      Number(page),
+      Number(limit),
+    );
   }
 
   // Export / Download Reports
@@ -326,7 +367,7 @@ export class OwnerController {
     }
 
     const buffer = await this.reportExportService.export(
-      report, 
+      report,
       exportType,
       data,
       title,
