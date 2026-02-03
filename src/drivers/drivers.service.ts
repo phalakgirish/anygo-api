@@ -674,10 +674,10 @@ export class DriversService {
   //   }
 
   // ================= UPDATE DRIVER LOCATION =================
-  async updateLocation(driverId: string, dto: UpdateLocationDto,) {
+  async updateLocation(driverId: string, dto: UpdateLocationDto) {
     const { lat, lng } = dto;
 
-    // update driver live location
+    // 1️⃣ Update driver live location
     await this.driverModel.findByIdAndUpdate(driverId, {
       currentLocation: {
         type: 'Point',
@@ -685,7 +685,7 @@ export class DriversService {
       },
     });
 
-    // find active booking
+    // 2️⃣ Find active booking
     const booking = await this.bookingModel.findOne({
       driverId,
       status: {
@@ -697,15 +697,17 @@ export class DriversService {
     });
 
     if (booking) {
-      // 🚀 Push location to customer
+      // ✅ SAVE DRIVER LOCATION IN BOOKING (THIS WAS MISSING)
+      booking.lastDriverLocation = { lat, lng };
+      await booking.save();
+
+      // 🚀 Emit to customer (socket)
       await this.liveGateway.emitDriverLocation(
         booking._id.toString(),
         { lat, lng },
       );
-    }
 
-    // calculate distance to pickup
-    if (booking) {
+      // 3️⃣ Distance to pickup check
       const distanceToPickup =
         this.mapsService.haversineDistance(
           lat,
@@ -713,17 +715,66 @@ export class DriversService {
           booking.pickupLocation.lat,
           booking.pickupLocation.lng,
         );
-      // 50 meters threshold
-      if (
-        distanceToPickup <= 0.05 &&
-        !booking.arrivedAtPickupAt
-      ) {
+
+      if (distanceToPickup <= 0.05 && !booking.arrivedAtPickupAt) {
         booking.arrivedAtPickupAt = new Date();
         await booking.save();
       }
     }
+
     return { message: 'Location updated' };
   }
+
+  // async updateLocation(driverId: string, dto: UpdateLocationDto,) {
+  //   const { lat, lng } = dto;
+
+  //   // update driver live location
+  //  await this.driverModel.findByIdAndUpdate(driverId, {
+  //    currentLocation: {
+  //      type: 'Point',
+  //     coordinates: [lng, lat],
+  //    },
+  //   });
+  //
+  //   // find active booking
+  // const booking = await this.bookingModel.findOne({
+  //   driverId,
+  //   status: {
+  //     $in: [
+  //      BookingStatus.DRIVER_ASSIGNED,
+  //     BookingStatus.TRIP_STARTED,
+  //  ],
+  //  },
+  // });
+
+  // if (booking) {
+  // 🚀 Push location to customer
+  //   await this.liveGateway.emitDriverLocation(
+  //     booking._id.toString(),
+  //     { lat, lng },
+  //   );
+  // }
+
+  //  // calculate distance to pickup
+  //  if (booking) {
+  //    const distanceToPickup =
+  //      this.mapsService.haversineDistance(
+  //       lat,
+  //      lng,
+  //      booking.pickupLocation.lat,
+  //     booking.pickupLocation.lng,
+  //   );
+  //   // 50 meters threshold
+  //  if (
+  //    distanceToPickup <= 0.05 &&
+  //   !booking.arrivedAtPickupAt
+  // ) {
+  //  booking.arrivedAtPickupAt = new Date();
+  //   await booking.save();
+  //  }
+  // }
+  //  return { message: 'Location updated' };
+  // }
 
   // ================= GEO-NEARBY DRIVER QUERY =================
   async findNearbyDrivers(params: {

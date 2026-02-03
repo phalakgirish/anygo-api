@@ -306,19 +306,24 @@ export class BookingService {
 
   // 4. COMMON HELPER
   private async findCurrentBooking(customerId: string) {
-    const booking = await this.bookingModel.findOne({
-      customerId,
-      status: {
-        $in: [
-          BookingStatus.SEARCHING_DRIVER,
-          BookingStatus.DRIVER_NOTIFIED,
-          BookingStatus.DRIVER_ASSIGNED,
-          BookingStatus.TRIP_STARTED,
-          BookingStatus.NO_DRIVER_FOUND,
-          BookingStatus.TRIP_COMPLETED,
-        ],
-      },
-    }).sort({ createdAt: -1 });
+    const booking = await this.bookingModel
+      .findOne({
+        customerId,
+        status: {
+          $in: [
+            BookingStatus.SEARCHING_DRIVER,
+            BookingStatus.DRIVER_NOTIFIED,
+            BookingStatus.DRIVER_ASSIGNED,
+            BookingStatus.TRIP_STARTED,
+            BookingStatus.TRIP_COMPLETED,
+            BookingStatus.NO_DRIVER_FOUND,
+          ],
+        },
+      })
+      .sort({ createdAt: -1 })
+      .populate<{ driverId: Driver }>('driverId')
+      .exec();
+
 
     if (!booking) {
       throw new BadRequestException('No active booking found');
@@ -327,10 +332,55 @@ export class BookingService {
     return booking;
   }
 
+  // private async findCurrentBooking(customerId: string) {
+  //  const booking = await this.bookingModel.findOne({
+  //  customerId,
+  // status: {
+  //  $in: [
+  //  BookingStatus.SEARCHING_DRIVER,
+  // BookingStatus.DRIVER_NOTIFIED,
+  // BookingStatus.DRIVER_ASSIGNED,
+  //  BookingStatus.TRIP_STARTED,
+  //  BookingStatus.NO_DRIVER_FOUND,
+  //  BookingStatus.TRIP_COMPLETED,
+  //  ],
+  //  },
+  //  }).sort({ createdAt: -1 });
+
+  // if (!booking) {
+  //  throw new BadRequestException('No active booking found');
+  //  }
+
+  // return booking;
+  // }
+
   // 5.GET CURRENT BOOKING
   async getCurrentBooking(customerId: string) {
-    return this.findCurrentBooking(customerId);
+    const booking = await this.findCurrentBooking(customerId);
+
+    const lastDriverLocation =
+      booking.driverId?.currentLocation?.coordinates?.length === 2
+        ? {
+          lat: booking.driverId.currentLocation.coordinates[1],
+          lng: booking.driverId.currentLocation.coordinates[0],
+        }
+        : booking.lastDriverLocation || null;
+
+    return {
+      status: booking.status,
+      pickupLocation: booking.pickupLocation,
+      dropLocation: booking.dropLocation,
+      lastDriverLocation,
+      finalFare: booking.finalFare,
+      vehicleType: booking.vehicleType,
+      distanceKm: booking.distanceKm,
+      durationMin: booking.durationMin,
+    };
   }
+
+  //async getCurrentBooking(customerId: string) {
+  //return this.findCurrentBooking(customerId);
+  // }
 
   // 6. GET CURRENT BOOKING STATUS
   async getCurrentBookingStatus(customerId: string) {
@@ -406,7 +456,7 @@ export class BookingService {
             : null,
         }
         : null,
-      routePath: booking.routePath, // ✅ IMPORTANT
+      routePath: booking.routePath, 
 
       driverToPickupEtaMin: booking.driverToPickupEtaMin,
       pickupToDropEtaMin: booking.pickupToDropEtaMin,
@@ -414,7 +464,7 @@ export class BookingService {
       finalFare: booking.finalFare,
     };
   }
-  
+
   // Vehicle pricing
   async getVehiclePricing(vehicleType?: string) {
     const filter: any = {};
