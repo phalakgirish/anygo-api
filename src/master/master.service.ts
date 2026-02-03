@@ -28,9 +28,29 @@ export class MasterService {
         return this.cityModel.create({ name: dto.name });
     }
 
-    async getCities() {
-        return this.cityModel.find().sort({ name: 1 });
+    async getCities(page = 1, limit = 10) {
+        const skip = (page - 1) * limit;
+
+        const [data, total] = await Promise.all([
+            this.cityModel
+                .find({ isActive: true })
+                .sort({ name: 1 })
+                .skip(skip)
+                .limit(limit),
+            this.cityModel.countDocuments({ isActive: true }),
+        ]);
+
+        return {
+            data,
+            pagination: {
+                total,
+                page,
+                limit,
+                totalPages: Math.ceil(total / limit),
+            },
+        };
     }
+
 
     async updateCity(id: string, dto: UpdateCityDto) {
         const city = await this.cityModel.findByIdAndUpdate(id, dto, { new: true });
@@ -62,9 +82,29 @@ export class MasterService {
         return this.vehicleModel.create(dto);
     }
 
-    async getVehicles() {
-        return this.vehicleModel.find().sort({ vehicleType: 1 });
+    async getVehicles(page = 1, limit = 10) {
+        const skip = (page - 1) * limit;
+
+        const [data, total] = await Promise.all([
+            this.vehicleModel
+                .find({ isActive: true })
+                .sort({ vehicleType: 1 })
+                .skip(skip)
+                .limit(limit),
+            this.vehicleModel.countDocuments({ isActive: true }),
+        ]);
+
+        return {
+            data,
+            pagination: {
+                total,
+                page,
+                limit,
+                totalPages: Math.ceil(total / limit),
+            },
+        };
     }
+
 
     async updateVehicle(id: string, dto: UpdateVehicleDto) {
         const vehicle = await this.vehicleModel.findByIdAndUpdate(id, dto, { new: true });
@@ -96,16 +136,40 @@ export class MasterService {
         return this.pricingModel.create(dto);
     }
 
-    async getPricing(vehicleType?: string) {
-        const filter: any = {};
+    async getPricing(
+        vehicleType?: string,
+        page = 1,
+        limit = 10,
+    ) {
+        const filter: any = { isActive: true };
 
         if (vehicleType) {
             filter.vehicleType = vehicleType;
         }
 
-        return this.pricingModel.find(filter).sort({ vehicleType: 1 });
+        const skip = (page - 1) * limit;
+
+        const [data, total] = await Promise.all([
+            this.pricingModel
+                .find(filter)
+                .sort({ vehicleType: 1 })
+                .skip(skip)
+                .limit(limit),
+            this.pricingModel.countDocuments(filter),
+        ]);
+
+        return {
+            data,
+            pagination: {
+                total,
+                page,
+                limit,
+                totalPages: Math.ceil(total / limit),
+            },
+        };
     }
-    
+
+
     async updatePricing(id: string, dto: UpdatePricingDto) {
         const pricing = await this.pricingModel.findByIdAndUpdate(id, dto, { new: true });
         if (!pricing) throw new NotFoundException('Pricing not found');
