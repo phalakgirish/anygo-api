@@ -6,7 +6,7 @@ import { CreateVehicleDto } from './dto/create-vehicle.dto';
 import { UpdateVehicleDto } from './dto/update-vehicle.dto';
 import { CreatePricingDto } from './dto/create-pricing.dto';
 import { UpdatePricingDto } from './dto/update-pricing.dto';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { OwnerJwtGuard } from './owner-jwt.guard';
 
 @ApiTags('Master')
@@ -22,9 +22,17 @@ export class MasterController {
         return this.masterService.createCity(dto);
     }
 
-    @Get('city')
-    getCities() {
-        return this.masterService.getCities();
+    @Get('cities')
+    @ApiQuery({ name: 'page', required: false })
+    @ApiQuery({ name: 'limit', required: false })
+    getCities(
+        @Query('page') page = 1,
+        @Query('limit') limit = 10,
+    ) {
+        return this.masterService.getCities(
+            Number(page),
+            Number(limit),
+        );
     }
 
     @Patch('city/:id')
@@ -43,10 +51,19 @@ export class MasterController {
         return this.masterService.createVehicle(dto);
     }
 
-    @Get('vehicle')
-    getVehicles() {
-        return this.masterService.getVehicles();
+    @Get('vehicles')
+    @ApiQuery({ name: 'page', required: false })
+    @ApiQuery({ name: 'limit', required: false })
+    getVehicles(
+        @Query('page') page = 1,
+        @Query('limit') limit = 10,
+    ) {
+        return this.masterService.getVehicles(
+            Number(page),
+            Number(limit),
+        );
     }
+
 
     @Patch('vehicle/:id')
     updateVehicle(@Param('id') id: string, @Body() dto: UpdateVehicleDto) {
@@ -65,9 +82,21 @@ export class MasterController {
     }
 
     @Get('pricing')
-    getPricing(@Query('vehicleType') vehicleType: string) {
-        return this.masterService.getPricing(vehicleType);
+    // @ApiQuery({ name: 'vehicleType', required: false })
+    @ApiQuery({ name: 'page', required: false })
+    @ApiQuery({ name: 'limit', required: false })
+    getPricing(
+        @Query('vehicleType') vehicleType?: string,
+        @Query('page') page = 1,
+        @Query('limit') limit = 10,
+    ) {
+        return this.masterService.getPricing(
+            vehicleType,
+            Number(page),
+            Number(limit),
+        );
     }
+
 
     @Patch('pricing/:id')
     updatePricing(@Param('id') id: string, @Body() dto: UpdatePricingDto) {

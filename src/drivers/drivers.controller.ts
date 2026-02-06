@@ -417,5 +417,11 @@ export class DriversController {
     return this.driversService.updateDriverDocuments(req.driverId, files);
   }
 
+  @ApiBearerAuth()
+  @UseGuards(DriverAuthGuard)
+  @Get('bank-details')
+  getBankDetails(@Req() req) {
+    return this.driversService.getDriverBankDetails(req.driverId);
+  }
 }
 
