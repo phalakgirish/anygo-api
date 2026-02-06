@@ -39,9 +39,11 @@ export class OwnerController {
   // All Drivers 
   @ApiBearerAuth()
   @UseGuards(OwnerJwtGuard)
+  @ApiQuery({ name: 'page', required: false })
+  @ApiQuery({ name: 'limit', required: false })
   @Get('drivers')
-  getDrivers() {
-    return this.ownerService.getAllDrivers();
+  getDrivers(@Query('page') page = 1, @Query('limit') limit = 10,) {
+    return this.ownerService.getAllDrivers(Number(page), Number(limit),);
   }
 
   // Driver full details
@@ -74,17 +76,21 @@ export class OwnerController {
   // Customer Booking
   @ApiBearerAuth()
   @UseGuards(OwnerJwtGuard)
+  @ApiQuery({ name: 'page', required: false })
+  @ApiQuery({ name: 'limit', required: false })
   @Get('bookings')
-  getAllBookings() {
-    return this.ownerService.getAllBookings();
+  getAllBookings(@Query('page') page = 1, @Query('limit') limit = 10,) {
+    return this.ownerService.getAllBookings(Number(page), Number(limit),);
   }
 
   // Trip Management (Driver-wise)
   @ApiBearerAuth()
   @UseGuards(OwnerJwtGuard)
+  @ApiQuery({ name: 'page', required: false })
+  @ApiQuery({ name: 'limit', required: false })
   @Get('trips/management')
-  getTripManagement() {
-    return this.ownerService.getTripManagement();
+  getTripManagement(@Query('page') page = 1, @Query('limit') limit = 10,) {
+    return this.ownerService.getTripManagement(Number(page), Number(limit),);
   }
 
   // All Withdrawal Request 
@@ -114,9 +120,21 @@ export class OwnerController {
   // All Customers 
   @ApiBearerAuth()
   @UseGuards(OwnerJwtGuard)
+  @ApiQuery({ name: 'page', required: false })
+  @ApiQuery({ name: 'limit', required: false })
   @Get('all-customers')
-  getCustomers() {
-    return this.ownerService.getAllCustomers();
+  getCustomers(@Query('page') page = 1, @Query('limit') limit = 10,) {
+    return this.ownerService.getAllCustomers(Number(page), Number(limit),);
+  }
+
+  // Ongiong Trips
+  @Get('trips/ongoing')
+  @ApiBearerAuth()
+  @UseGuards(OwnerJwtGuard)
+  @ApiQuery({ name: 'page', required: false })
+  @ApiQuery({ name: 'limit', required: false })
+  getOngoingTrips(@Query('page') page = 1, @Query('limit') limit = 10,) {
+    return this.ownerService.getOngoingTrips(Number(page), Number(limit),);
   }
 
   // Admin Dashboard
@@ -152,79 +170,121 @@ export class OwnerController {
   @Get('payments/drivers')
   @ApiQuery({ name: 'month', required: false })
   @ApiQuery({ name: 'year', required: false })
+  @ApiQuery({ name: 'page', required: false })
+  @ApiQuery({ name: 'limit', required: false })
   getDriverPayments(
     @Query('month') month?: number,
     @Query('year') year?: number,
+    @Query('page') page = 1,
+    @Query('limit') limit = 10,
   ) {
     return this.ownerService.getDriverPaymentSummary(
       month ? Number(month) : undefined,
       year ? Number(year) : undefined,
+      undefined,
+      undefined,
+      undefined,
+      Number(page),
+      Number(limit),
     );
   }
 
   // Driver Performance Report
-  @ApiBearerAuth()
-  @UseGuards(OwnerJwtGuard)
   @Get('reports/driver-performance')
-  @ApiQuery({ name: 'from', required: false })
-  @ApiQuery({ name: 'to', required: false })
+  @ApiQuery({ name: 'range', required: false })
   @ApiQuery({ name: 'driverName', required: false })
-  getDriverPerformance(@Query('from') from?: string, @Query('to') to?: string,
-    @Query('driverName') driverName?: string,) {
-    return this.ownerService.getDriverPerformanceReport({
-      from,
-      to,
-      driverName,
-    });
+  @ApiQuery({ name: 'page', required: false })
+  @ApiQuery({ name: 'limit', required: false })
+  getDriverPerformance(
+    @Query('range') range?: string,
+    @Query('driverName') driverName?: string,
+    @Query('page') page = 1,
+    @Query('limit') limit = 10,
+  ) {
+    const { from, to } = getDateRange(range);
+    return this.ownerService.getDriverPerformanceReport(
+      {
+        from: from?.toISOString(),
+        to: to?.toISOString(),
+        driverName,
+      },
+      Number(page),
+      Number(limit),
+    );
   }
 
   // Trip Report
   @ApiBearerAuth()
   @UseGuards(OwnerJwtGuard)
   @Get('reports/trips')
-  @ApiQuery({ name: 'from', required: false })
-  @ApiQuery({ name: 'to', required: false })
+  @ApiQuery({ name: 'range', required: false })
   @ApiQuery({ name: 'driverName', required: false })
-  getTripReport(@Query('from') from?: string, @Query('to') to?: string,
-    @Query('driverName') driverName?: string,) {
-    return this.ownerService.getTripReport({
-      from,
-      to,
-      driverName,
-    });
+  @ApiQuery({ name: 'page', required: false })
+  @ApiQuery({ name: 'limit', required: false })
+  getTripReport(
+    @Query('range') range?: string,
+    @Query('driverName') driverName?: string,
+    @Query('page') page = '1',
+    @Query('limit') limit = '10',
+  ) {
+    const { from, to } = getDateRange(range);
+    return this.ownerService.getTripReport(
+      {
+        from: from?.toISOString(),
+        to: to?.toISOString(),
+        driverName,
+      },
+      Number(page),
+      Number(limit),
+    );
   }
 
   // Cancellation Report
   @ApiBearerAuth()
   @UseGuards(OwnerJwtGuard)
-  @Get('reports/cancellations')
-  @ApiQuery({ name: 'from', required: false })
-  @ApiQuery({ name: 'to', required: false })
+  @ApiQuery({ name: 'range', required: false })
   @ApiQuery({ name: 'driverName', required: false })
-  getCancellationReport(@Query('from') from?: string, @Query('to') to?: string,
-    @Query('driverName') driverName?: string,) {
-    return this.ownerService.getCancellationReport({
-      from,
-      to,
-      driverName,
-    });
+  @ApiQuery({ name: 'page', required: false })
+  @ApiQuery({ name: 'limit', required: false })
+  getCancellationReport(
+    @Query('range') range?: string,
+    @Query('driverName') driverName?: string,
+    @Query('page') page = '1',
+    @Query('limit') limit = '10',
+  ) {
+    const { from, to } = getDateRange(range);
+    return this.ownerService.getCancellationReport(
+      {
+        from: from?.toISOString(),
+        to: to?.toISOString(),
+        driverName,
+      },
+      Number(page),
+      Number(limit),
+    );
   }
 
   // Earning Report
   @ApiBearerAuth()
   @UseGuards(OwnerJwtGuard)
   @Get('reports/earnings')
-  @ApiQuery({ name: 'from', required: false })
-  @ApiQuery({ name: 'to', required: false })
+  @ApiQuery({ name: 'range', required: false })
   @ApiQuery({ name: 'driverName', required: false })
-  getEarningsReport(@Query('from') from?: string, @Query('to') to?: string,
-    @Query('driverName') driverName?: string,) {
+  @ApiQuery({ name: 'page', required: false })
+  @ApiQuery({ name: 'limit', required: false })
+  getEarningsReport(
+    @Query('range') range?: string,
+    @Query('driverName') driverName?: string,
+    @Query('page') page = 1, @Query('limit') limit = 10,) {
+    const { from, to } = getDateRange(range);
     return this.ownerService.getDriverPaymentSummary(
       undefined,
       undefined,
-      from ? new Date(from) : undefined,
-      to ? new Date(to) : undefined,
+      from,
+      to,
       driverName,
+      Number(page),
+      Number(limit),
     );
   }
 
@@ -232,18 +292,26 @@ export class OwnerController {
   @ApiBearerAuth()
   @UseGuards(OwnerJwtGuard)
   @Get('reports/payments')
-  @ApiQuery({ name: 'from', required: false })
-  @ApiQuery({ name: 'to', required: false })
+  @ApiQuery({ name: 'range', required: false })
   @ApiQuery({ name: 'driverName', required: false })
+  @ApiQuery({ name: 'page', required: false })
+  @ApiQuery({ name: 'limit', required: false })
   getPaymentReport(
-    @Query('from') from?: string, @Query('to') to?: string,
+    @Query('range') range?: string,
     @Query('driverName') driverName?: string,
+    @Query('page') page = '1',
+    @Query('limit') limit = '10',
   ) {
-    return this.ownerService.getPaymentReport({
-      from,
-      to,
-      driverName
-    });
+    const { from, to } = getDateRange(range);
+    return this.ownerService.getPaymentReport(
+      {
+        from: from?.toISOString(),
+        to: to?.toISOString(),
+        driverName,
+      },
+      Number(page),
+      Number(limit),
+    );
   }
 
   // Export / Download Reports
@@ -296,7 +364,7 @@ export class OwnerController {
     }
 
     const buffer = await this.reportExportService.export(
-      report, 
+      report,
       exportType,
       data,
       title,
@@ -322,5 +390,52 @@ export class OwnerController {
 
     res.end(buffer);
   }
+}
 
+// Date Range Calculator 
+function getDateRange(range?: string): { from?: Date; to?: Date } {
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  switch (range) {
+    case 'TODAY': {
+      return {
+        from: startOfToday,
+        to: new Date(),
+      };
+    }
+
+    case 'LAST_7_DAYS': {
+      const from = new Date();
+      from.setDate(from.getDate() - 6); // including today
+      from.setHours(0, 0, 0, 0);
+
+      return {
+        from,
+        to: new Date(),
+      };
+    }
+
+    case 'LAST_WEEK': {
+      // Previous full calendar week (Mon–Sun)
+      const day = now.getDay(); // 0 = Sunday
+      const diffToMonday = day === 0 ? 6 : day - 1;
+
+      const lastMonday = new Date(now);
+      lastMonday.setDate(now.getDate() - diffToMonday - 7);
+      lastMonday.setHours(0, 0, 0, 0);
+
+      const lastSunday = new Date(lastMonday);
+      lastSunday.setDate(lastMonday.getDate() + 6);
+      lastSunday.setHours(23, 59, 59, 999);
+
+      return {
+        from: lastMonday,
+        to: lastSunday,
+      };
+    }
+
+    default:
+      return {};
+  }
 }
