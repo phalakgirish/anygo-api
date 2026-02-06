@@ -191,46 +191,47 @@ export class OwnerController {
 
   // Driver Performance Report
   @Get('reports/driver-performance')
-  @ApiQuery({ name: 'from', required: false })
-  @ApiQuery({ name: 'to', required: false })
+  @ApiQuery({ name: 'range', required: false })
   @ApiQuery({ name: 'driverName', required: false })
   @ApiQuery({ name: 'page', required: false })
   @ApiQuery({ name: 'limit', required: false })
   getDriverPerformance(
-    @Query('from') from?: string,
-    @Query('to') to?: string,
+    @Query('range') range?: string,
     @Query('driverName') driverName?: string,
     @Query('page') page = 1,
     @Query('limit') limit = 10,
   ) {
+    const { from, to } = getDateRange(range);
     return this.ownerService.getDriverPerformanceReport(
-      { from, to, driverName },
+      {
+        from: from?.toISOString(),
+        to: to?.toISOString(),
+        driverName,
+      },
       Number(page),
       Number(limit),
     );
   }
 
-
   // Trip Report
   @ApiBearerAuth()
   @UseGuards(OwnerJwtGuard)
   @Get('reports/trips')
-  @ApiQuery({ name: 'from', required: false })
-  @ApiQuery({ name: 'to', required: false })
+  @ApiQuery({ name: 'range', required: false })
   @ApiQuery({ name: 'driverName', required: false })
   @ApiQuery({ name: 'page', required: false })
   @ApiQuery({ name: 'limit', required: false })
   getTripReport(
-    @Query('from') from?: string,
-    @Query('to') to?: string,
+    @Query('range') range?: string,
     @Query('driverName') driverName?: string,
     @Query('page') page = '1',
     @Query('limit') limit = '10',
   ) {
+    const { from, to } = getDateRange(range);
     return this.ownerService.getTripReport(
       {
-        from,
-        to,
+        from: from?.toISOString(),
+        to: to?.toISOString(),
         driverName,
       },
       Number(page),
@@ -241,23 +242,21 @@ export class OwnerController {
   // Cancellation Report
   @ApiBearerAuth()
   @UseGuards(OwnerJwtGuard)
-  @Get('reports/cancellations')
-  @ApiQuery({ name: 'from', required: false })
-  @ApiQuery({ name: 'to', required: false })
+  @ApiQuery({ name: 'range', required: false })
   @ApiQuery({ name: 'driverName', required: false })
   @ApiQuery({ name: 'page', required: false })
   @ApiQuery({ name: 'limit', required: false })
   getCancellationReport(
-    @Query('from') from?: string,
-    @Query('to') to?: string,
+    @Query('range') range?: string,
     @Query('driverName') driverName?: string,
     @Query('page') page = '1',
     @Query('limit') limit = '10',
   ) {
+    const { from, to } = getDateRange(range);
     return this.ownerService.getCancellationReport(
       {
-        from,
-        to,
+        from: from?.toISOString(),
+        to: to?.toISOString(),
         driverName,
       },
       Number(page),
@@ -269,21 +268,20 @@ export class OwnerController {
   @ApiBearerAuth()
   @UseGuards(OwnerJwtGuard)
   @Get('reports/earnings')
-  @ApiQuery({ name: 'from', required: false })
-  @ApiQuery({ name: 'to', required: false })
+  @ApiQuery({ name: 'range', required: false })
   @ApiQuery({ name: 'driverName', required: false })
   @ApiQuery({ name: 'page', required: false })
   @ApiQuery({ name: 'limit', required: false })
   getEarningsReport(
-    @Query('from') from?: string,
-    @Query('to') to?: string,
+    @Query('range') range?: string,
     @Query('driverName') driverName?: string,
     @Query('page') page = 1, @Query('limit') limit = 10,) {
+    const { from, to } = getDateRange(range);
     return this.ownerService.getDriverPaymentSummary(
       undefined,
       undefined,
-      from ? new Date(from) : undefined,
-      to ? new Date(to) : undefined,
+      from,
+      to,
       driverName,
       Number(page),
       Number(limit),
@@ -294,22 +292,21 @@ export class OwnerController {
   @ApiBearerAuth()
   @UseGuards(OwnerJwtGuard)
   @Get('reports/payments')
-  @ApiQuery({ name: 'from', required: false })
-  @ApiQuery({ name: 'to', required: false })
+  @ApiQuery({ name: 'range', required: false })
   @ApiQuery({ name: 'driverName', required: false })
   @ApiQuery({ name: 'page', required: false })
   @ApiQuery({ name: 'limit', required: false })
   getPaymentReport(
-    @Query('from') from?: string,
-    @Query('to') to?: string,
+    @Query('range') range?: string,
     @Query('driverName') driverName?: string,
     @Query('page') page = '1',
     @Query('limit') limit = '10',
   ) {
+    const { from, to } = getDateRange(range);
     return this.ownerService.getPaymentReport(
       {
-        from,
-        to,
+        from: from?.toISOString(),
+        to: to?.toISOString(),
         driverName,
       },
       Number(page),
@@ -393,5 +390,52 @@ export class OwnerController {
 
     res.end(buffer);
   }
+}
 
+// Date Range Calculator 
+function getDateRange(range?: string): { from?: Date; to?: Date } {
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  switch (range) {
+    case 'TODAY': {
+      return {
+        from: startOfToday,
+        to: new Date(),
+      };
+    }
+
+    case 'LAST_7_DAYS': {
+      const from = new Date();
+      from.setDate(from.getDate() - 6); // including today
+      from.setHours(0, 0, 0, 0);
+
+      return {
+        from,
+        to: new Date(),
+      };
+    }
+
+    case 'LAST_WEEK': {
+      // Previous full calendar week (Mon–Sun)
+      const day = now.getDay(); // 0 = Sunday
+      const diffToMonday = day === 0 ? 6 : day - 1;
+
+      const lastMonday = new Date(now);
+      lastMonday.setDate(now.getDate() - diffToMonday - 7);
+      lastMonday.setHours(0, 0, 0, 0);
+
+      const lastSunday = new Date(lastMonday);
+      lastSunday.setDate(lastMonday.getDate() + 6);
+      lastSunday.setHours(23, 59, 59, 999);
+
+      return {
+        from: lastMonday,
+        to: lastSunday,
+      };
+    }
+
+    default:
+      return {};
+  }
 }
