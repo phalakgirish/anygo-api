@@ -46,6 +46,14 @@ export class PaymentService {
         };
     }
 
+    generateTestSignature(orderId: string, paymentId: string) {
+        const body = orderId + "|" + paymentId;
+
+        return crypto
+            .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET!)
+            .update(body)
+            .digest("hex");
+    }
 
     // ✅ VERIFY PAYMENT
     async verifyPayment(dto: {
