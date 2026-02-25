@@ -10,12 +10,22 @@ import { PaymentService } from './payment.service';
 
 @Controller('payment')
 export class PaymentController {
-  constructor(private readonly paymentService: PaymentService) {}
+  constructor(private readonly paymentService: PaymentService) { }
 
   // @UseGuards(JwtAuthGuard)
   @Post('create-order/:bookingId')
   createOrder(@Param('bookingId') bookingId: string) {
     return this.paymentService.createOrder(bookingId);
+  }
+
+  @Post("test-signature")
+  testSig(@Body() body: any) {
+    return {
+      signature: this.paymentService.generateTestSignature(
+        body.orderId,
+        body.paymentId
+      ),
+    };
   }
 
   // @UseGuards(JwtAuthGuard)

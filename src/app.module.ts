@@ -21,6 +21,10 @@ import { PaymentModule } from './payment/payment.module';
   // imports: [ MongooseModule.forRoot('mongodb://localhost:27017/Porter-App'),OwnerModule, CustomersModule, 
   DriversModule, AuthModule, CommonModule,MasterModule,PaymentModule,
   ConfigModule.forRoot({ isGlobal: true,}),GatewaysModule,ScheduleModule.forRoot()],
+
+  // imports: [ MongooseModule.forRoot('mongodb://localhost:27017/Porter-App'),OwnerModule, CustomersModule, 
+  // DriversModule, AuthModule, CommonModule,MasterModule,PaymentModule,
+  // ConfigModule.forRoot({ isGlobal: true,}),GatewaysModule,ScheduleModule.forRoot()],
   controllers: [AppController],
   providers: [AppService],
 })
