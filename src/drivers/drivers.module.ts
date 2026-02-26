@@ -13,16 +13,19 @@ import { Withdraw, WithdrawSchema } from './schemas/withdraw.schema';
 import { Pricing, PricingSchema } from 'src/customers/booking/schemas/pricing.schema';
 import { DigiLockerService } from './digilocker.service';
 import { City, CitySchema } from 'src/master/schemas/city.schema';
+import { Customer, CustomerSchema } from 'src/customers/schemas/customer.schema';
+import { MailModule } from 'src/common/mail/mail.module';
 
 @Module({
   imports: [
     MongooseModule.forFeature([{ name: Driver.name, schema: DriverSchema },
     { name: Booking.name, schema: BookingSchema }, { name: Withdraw.name, schema: WithdrawSchema },
-    { name: Pricing.name, schema: PricingSchema },{ name: City.name, schema: CitySchema },]),
+    { name: Pricing.name, schema: PricingSchema },{ name: City.name, schema: CitySchema },
+    { name: Customer.name, schema: CustomerSchema },]),
     JwtModule.register({
       secret: 'driver-registration-secret',
       signOptions: { expiresIn: '1d' },
-    }), forwardRef(() => AuthModule), GatewaysModule,
+    }), forwardRef(() => AuthModule), GatewaysModule, MailModule,
   ],
   controllers: [DriversController],
   providers: [DriversService, DriverRegistrationGuard, LiveTrackingGateway, DigiLockerService,],
