@@ -121,7 +121,8 @@ export class OwnerService {
       throw new NotFoundException('Driver not found');
     }
 
-    const baseUrl = 'http://localhost:5000/uploads';
+    const baseUrl = 'http://3.108.186.215:5000/uploads';
+    // const baseUrl = 'https://localhost:5000/uploads';
     // const driverFolder = `driver-documents/${driver._id}`;
 
     return {
