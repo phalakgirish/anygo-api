@@ -18,6 +18,10 @@ import { Pricing, PricingDocument } from 'src/customers/booking/schemas/pricing.
 import { DigiLockerService } from './digilocker.service';
 import { PaymentStatus } from 'src/customers/booking/dto/payment-status.dto';
 import { City, CityDocument } from 'src/master/schemas/city.schema';
+import { MailService } from 'src/common/mail/mail.service';
+import { Customer, CustomerDocument } from 'src/customers/schemas/customer.schema';
+import PDFDocument from 'pdfkit';
+import { Buffer } from 'buffer';
 
 
 @Injectable()
@@ -34,6 +38,8 @@ export class DriversService {
     @InjectModel(Booking.name) private bookingModel: Model<BookingDocument>,
     @InjectModel(Pricing.name) private pricingModel: Model<PricingDocument>,
     @InjectModel(City.name) private readonly cityModel: Model<CityDocument>,
+    @InjectModel(Customer.name) private customerModel: Model<CustomerDocument>,
+    private readonly mailService: MailService,
   ) { }
 
   // 1. Personal (OTP step)
@@ -535,6 +541,44 @@ export class DriversService {
 
     // 7️⃣ Stop tracking
     this.liveGateway.stopTracking(bookingId);
+
+    // 8️⃣ Send Invoice in Background (Non-blocking)
+    setImmediate(async () => {
+      try {
+        const customer = await this.customerModel.findById(booking.customerId);
+
+        if (!customer?.email) return;
+
+        const fareData = {
+          baseFare,
+          distanceFare,
+          pickupCharge,
+          loadingCharge,
+          finalFare,
+        };
+
+        const pdfBuffer = await this.generateInvoicePdf(
+          booking,
+          customer,
+          fareData,
+        );
+
+        await this.mailService.sendMailWithAttachment(
+          customer.email,
+          'Your Trip Invoice',
+          '<p>Please find attached your trip invoice.</p>',
+          [
+            {
+              filename: `invoice-${booking._id}.pdf`,
+              content: pdfBuffer,
+              contentType: 'application/pdf',
+            },
+          ],
+        );
+      } catch (error) {
+        console.error('Invoice email failed:', error);
+      }
+    });
 
     return {
       message: 'Trip completed successfully',
@@ -1335,4 +1379,47 @@ export class DriversService {
     if (distanceKm <= 50) return 40;
     return 50; // safety cap
   }
+
+  // ================ PDF Generator ================================
+  private async generateInvoicePdf(booking: any, customer: any, fareData: any): Promise<Buffer> {
+    return new Promise((resolve, reject) => {
+      const doc = new PDFDocument();
+      const buffers: any[] = [];
+
+      doc.on('data', buffers.push.bind(buffers));
+      doc.on('end', () => {
+        const pdfData = Buffer.concat(buffers);
+        resolve(pdfData);
+      });
+
+      doc.on('error', reject);
+
+      // ---- PDF CONTENT ----
+      doc.fontSize(20).text('Trip Invoice', { align: 'center' });
+      doc.moveDown();
+
+      doc.fontSize(12).text(`Invoice ID: ${booking._id}`);
+      doc.text(`Customer Name: ${customer.firstName} ${customer.lastName}`);
+      doc.text(`Trip Date: ${booking.tripEndTime}`);
+      doc.text(`Distance: ${booking.distanceKm} km`);
+      doc.moveDown();
+
+      doc.text(`Base Fare: ₹${fareData.baseFare}`);
+      doc.text(`Distance Fare: ₹${fareData.distanceFare}`);
+      doc.text(`Pickup Charge: ₹${fareData.pickupCharge}`);
+      doc.text(`Loading Charge: ₹${fareData.loadingCharge}`);
+      doc.text(`Platform Commision: ₹${fareData.platformCommission}`);
+      doc.moveDown();
+
+      doc.fontSize(14).text(`Final Fare: ₹${fareData.finalFare}`, {
+        underline: true,
+      });
+
+      doc.moveDown();
+      doc.text('Thank you for choosing our service!', { align: 'center' });
+
+      doc.end();
+    });
+  }
+
 }
