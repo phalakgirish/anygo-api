@@ -379,6 +379,12 @@ export class DriversController {
     return this.driversService.getActiveCities();
   }
 
+  //Get vehicles
+  @Get('active-Vehicles')
+  getActiveVehicles() {
+    return this.driversService.getActiveVehicles();
+  }
+
   @ApiBearerAuth()
   @UseGuards(DriverAuthGuard)
   @Delete('delete-account')
