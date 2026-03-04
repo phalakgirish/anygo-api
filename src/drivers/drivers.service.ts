@@ -22,6 +22,7 @@ import { MailService } from 'src/common/mail/mail.service';
 import { Customer, CustomerDocument } from 'src/customers/schemas/customer.schema';
 import PDFDocument from 'pdfkit';
 import { Buffer } from 'buffer';
+import { Vehicle, VehicleDocument } from 'src/master/schemas/vehicle.schema';
 
 
 @Injectable()
@@ -39,6 +40,7 @@ export class DriversService {
     @InjectModel(Pricing.name) private pricingModel: Model<PricingDocument>,
     @InjectModel(City.name) private readonly cityModel: Model<CityDocument>,
     @InjectModel(Customer.name) private customerModel: Model<CustomerDocument>,
+    @InjectModel(Vehicle.name) private readonly vehicleModel: Model<VehicleDocument>,
     private readonly mailService: MailService,
   ) { }
 
@@ -219,6 +221,17 @@ export class DriversService {
       .lean();
 
     return cities.map(c => c.name);
+  }
+
+  // Get vehicles 
+  async getActiveVehicles() {
+    const vehicles = await this.vehicleModel
+      .find({ isActive: true })
+      .select('vehicleType -_id')
+      .sort({ vehicleType: 1 })
+      .lean();
+
+    return vehicles.map(v => v.vehicleType);
   }
 
   // 6. Driver Status 

@@ -15,13 +15,14 @@ import { DigiLockerService } from './digilocker.service';
 import { City, CitySchema } from 'src/master/schemas/city.schema';
 import { Customer, CustomerSchema } from 'src/customers/schemas/customer.schema';
 import { MailModule } from 'src/common/mail/mail.module';
+import { Vehicle, VehicleSchema } from 'src/master/schemas/vehicle.schema';
 
 @Module({
   imports: [
     MongooseModule.forFeature([{ name: Driver.name, schema: DriverSchema },
     { name: Booking.name, schema: BookingSchema }, { name: Withdraw.name, schema: WithdrawSchema },
     { name: Pricing.name, schema: PricingSchema },{ name: City.name, schema: CitySchema },
-    { name: Customer.name, schema: CustomerSchema },]),
+    { name: Customer.name, schema: CustomerSchema },{ name: Vehicle.name, schema: VehicleSchema }]),
     JwtModule.register({
       secret: 'driver-registration-secret',
       signOptions: { expiresIn: '1d' },
