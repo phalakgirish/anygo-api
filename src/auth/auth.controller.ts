@@ -23,7 +23,7 @@ const uploadOptions = {
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(private readonly authService: AuthService) { }
 
   // 2️⃣ Send OTP
   @Post('send-otp')
@@ -31,11 +31,17 @@ export class AuthController {
     return this.authService.sendOtpForRegistration(dto.mobile);
   }
 
+  // Resend OTP
+  @Post('resend-otp')
+  async resendOtp(@Body('mobile') mobile: string) {
+    return this.authService.resendOtp(mobile);
+  }
+
   // 3️⃣ Verify OTP
   @Post("verify-otp")
   async verifyOtp(@Body() dto: VerifyOtpDto) {
     return this.authService.verifyOtp(dto.mobile, dto.otp);
-  }                  
+  }
 
   @Post('login')
   async login(@Body() dto: LoginDto) {
