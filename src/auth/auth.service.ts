@@ -138,6 +138,37 @@ export class AuthService {
         return { message: 'OTP sent successfully', otp };
     }
 
+    // ================= RESEND OTP =================
+    async resendOtp(mobile: string) {
+
+        // find existing OTP session
+        const session = await this.otpModel.findOne({ mobile });
+
+        if (!session) {
+            throw new BadRequestException(
+                'No OTP session found. Please start registration again.'
+            );
+        }
+
+        // generate new OTP
+        const otp = Math.floor(1000 + Math.random() * 9000).toString();
+
+        // update existing record
+        session.otp = otp;
+        session.expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+
+        await session.save();
+
+        // send OTP again
+        await this.otpSender.sendWhatsappOtp(mobile, otp);
+
+        console.log('Resent OTP:', otp);
+
+        return {
+            message: 'OTP resent successfully',
+        };
+    }
+
     //Login 
     async login(mobile: string, password: string) {
         // 1️⃣ Try CUSTOMER
