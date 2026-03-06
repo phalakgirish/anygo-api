@@ -175,7 +175,7 @@ export class AuthService {
         const customer = await this.customerModel.findOne({ mobile });
         if (customer) {
             const match = await bcrypt.compare(password, customer.password);
-            if (!match) throw new BadRequestException('Invalid password');
+            if (!match) throw new BadRequestException('Authentication Failed');
 
             return this.generateLoginResponse(customer._id.toString(), 'customer');
         }
@@ -184,7 +184,7 @@ export class AuthService {
         const driver = await this.driverModel.findOne({ mobile });
         if (driver) {
             const match = await bcrypt.compare(password, driver.password);
-            if (!match) throw new BadRequestException('Invalid password');
+            if (!match) throw new BadRequestException('Authentication Failed');
 
             return this.generateLoginResponse(driver._id.toString(), 'driver');
         }
@@ -193,7 +193,7 @@ export class AuthService {
         const owner = await this.ownerModel.findOne({ mobile });
         if (owner) {
             const match = await bcrypt.compare(password, owner.password);
-            if (!match) throw new BadRequestException('Invalid password');
+            if (!match) throw new BadRequestException('Authentication Failed');
 
             return this.generateLoginResponse(owner._id.toString(), 'owner');
         }
