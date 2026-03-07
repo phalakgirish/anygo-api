@@ -464,6 +464,12 @@ export class OwnerService {
 
   // 12. Admin Dashboard
   async getDashboardStats() {
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
+    const endOfToday = new Date();
+    endOfToday.setHours(23, 59, 59, 999);
+    
     const [
       totalTrips,
       totalDrivers,
@@ -471,6 +477,7 @@ export class OwnerService {
       cancelledTrips,
       completedTrips,
       ongoingTrips,
+      todaysTrips,
       revenue,
     ] = await Promise.all([
       this.bookingModel.countDocuments(), //totalTrips
@@ -481,6 +488,12 @@ export class OwnerService {
       this.bookingModel.countDocuments({
         status: { $in: ['DRIVER_NOTIFIED', 'DRIVER_ASSIGNED', 'TRIP_STARTED'] },
       }), //Ongoing Trips
+      this.bookingModel.countDocuments({
+        createdAt: {
+          $gte: startOfToday,
+          $lte: endOfToday,
+        },
+      }), // todaysTrips
       this.bookingModel.aggregate([
         {
           $match: {
@@ -503,10 +516,11 @@ export class OwnerService {
       cancelledTrips,
       completedTrips,
       ongoingTrips,
+      todaysTrips,
       totalRevenue: revenue[0]?.total || 0,
     };
   }
-
+  
   // Ongoing Trips
   async getOngoingTrips(page = 1, limit = 10) {
     const skip = (page - 1) * limit;
