@@ -320,21 +320,25 @@ export class OwnerController {
   @Get('reports/export')
   @ApiQuery({ name: 'report', enum: ReportType, required: false })
   @ApiQuery({ name: 'export', enum: ExportType, required: false })
-  @ApiQuery({ name: 'from', required: false })
-  @ApiQuery({ name: 'to', required: false })
+  @ApiQuery({ name: 'range', required: false })
+  // @ApiQuery({ name: 'from', required: false })
+  // @ApiQuery({ name: 'to', required: false })
   @ApiQuery({ name: 'driverName', required: false })
   async exportReports(
     @Query('report') report: ReportType,
     @Query('export') exportType: ExportType,
     @Res({ passthrough: false }) res: Response,
-    @Query('from') from?: string,
-    @Query('to') to?: string,
+    @Query('range') range?: string,
+    // @Query('from') from?: string,
+    // @Query('to') to?: string,
     @Query('driverName') driverName?: string,
   ) {
     let data: any[] = [];
     let title = '';
 
-    const filters = { from, to, driverName };
+    // const filters = { from, to, driverName };
+    const { from, to } = getDateRange(range);
+    const filters = {from, to,driverName};
 
     switch (report) {
       case ReportType.DRIVER_PERFORMANCE:
