@@ -190,6 +190,8 @@ export class OwnerController {
   }
 
   // Driver Performance Report
+  @ApiBearerAuth()
+  @UseGuards(OwnerJwtGuard)
   @Get('reports/driver-performance')
   @ApiQuery({ name: 'range', required: false })
   @ApiQuery({ name: 'driverName', required: false })
@@ -242,6 +244,7 @@ export class OwnerController {
   // Cancellation Report
   @ApiBearerAuth()
   @UseGuards(OwnerJwtGuard)
+  @Get('reports/cancellation')
   @ApiQuery({ name: 'range', required: false })
   @ApiQuery({ name: 'driverName', required: false })
   @ApiQuery({ name: 'page', required: false })

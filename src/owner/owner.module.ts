@@ -10,14 +10,18 @@ import { Withdraw, WithdrawSchema } from 'src/drivers/schemas/withdraw.schema';
 import { JwtModule } from '@nestjs/jwt';
 import { Customer, CustomerSchema } from 'src/customers/schemas/customer.schema';
 import { ReportExportService } from './reports/report-export.service';
+import { ScheduleModule } from '@nestjs/schedule';
+import { MailModule } from 'src/common/mail/mail.module';
+import { ReportSchedule } from './reports/report-schedule';
+import { ReportService } from './reports/report.service';
 
 @Module({
   imports: [MongooseModule.forFeature([{ name: Owner.name, schema: OwnerSchema },
     { name: Driver.name, schema: DriverSchema }, { name: Booking.name, schema: BookingSchema },
     { name: Withdraw.name, schema: WithdrawSchema },{ name: Customer.name, schema: CustomerSchema }]),
-  forwardRef(() => AuthModule),JwtModule], 
+  forwardRef(() => AuthModule),JwtModule, ScheduleModule.forRoot(), MailModule,], 
   controllers: [OwnerController],
-  providers: [OwnerService,ReportExportService,],
+  providers: [OwnerService,ReportExportService, ReportService, ReportSchedule],
   exports: [OwnerService],
 })
 export class OwnerModule {}

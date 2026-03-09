@@ -139,4 +139,91 @@ export class ReportExportUtil {
     return Buffer.from(await workbook.xlsx.writeBuffer());
   }
 
+  //=================== Daily Report =================
+  static dailyReportPDF(data: any): Promise<Buffer> {
+    return new Promise((resolve, reject) => {
+
+      const doc = new PDFDocument({ size: 'A4', margin: 50 });
+
+      const buffers: Buffer[] = [];
+      doc.on('data', buffers.push.bind(buffers));
+      doc.on('end', () => resolve(Buffer.concat(buffers)));
+
+      // TITLE
+      doc
+        .fontSize(20)
+        .font('Helvetica-Bold')
+        .text('DAILY OPERATIONS REPORT', { align: 'center' });
+
+      doc.moveDown(0.5);
+
+      doc
+        .fontSize(12)
+        .font('Helvetica')
+        .text(`Date: ${new Date().toDateString()}`, { align: 'center' });
+
+      doc.moveDown(2);
+
+      const section = (title: string, rows: any[]) => {
+
+        doc.fontSize(14).font('Helvetica-Bold').text(title);
+        doc.moveDown(0.5);
+
+        rows.forEach(r => {
+          doc
+            .fontSize(11)
+            .font('Helvetica')
+            .text(`${r.label}: ${r.value}`);
+        });
+
+        doc.moveDown(1.5);
+      };
+
+      // TRIPS
+      section('TRIPS', [
+        { label: 'Total Trips', value: data.totalTrips },
+        { label: 'Completed', value: data.completedTrips },
+        { label: 'Cancelled', value: data.cancelledTrips },
+        { label: 'Ongoing', value: data.ongoingTrips },
+        { label: 'Success Rate', value: `${data.successRate}%` },
+      ]);
+
+      // REVENUE
+      section('REVENUE', [
+        { label: 'Total Revenue', value: `₹${data.totalRevenue}` },
+        { label: 'Average Fare', value: `₹${data.averageFare}` },
+        { label: 'Highest Fare', value: `₹${data.highestFare}` },
+        { label: 'Lowest Fare', value: `₹${data.lowestFare}` },
+      ]);
+
+      // CUSTOMERS
+      section('CUSTOMERS', [
+        { label: 'New Customers', value: data.newCustomers },
+        { label: 'Customers Who Booked', value: data.customersBooked },
+        { label: 'Total Customers', value: data.totalCustomers },
+      ]);
+
+      // DRIVERS
+      section('DRIVERS', [
+        { label: 'Total Drivers', value: data.totalDrivers },
+        { label: 'Active Today', value: data.activeDrivers },
+        { label: 'Completed Trips', value: data.driversCompletedTrips },
+      ]);
+
+      // PAYMENTS
+      section('PAYMENTS', [
+        { label: 'Online Payments', value: data.onlinePayments },
+        { label: 'Cash Payments', value: data.cashPayments },
+        { label: 'Pending Payments', value: data.pendingPayments },
+      ]);
+
+      doc.moveDown(2);
+
+      doc
+        .fontSize(10)
+        .text('Generated Automatically - Porter Service System', { align: 'center' });
+
+      doc.end();
+    });
+  }
 }
