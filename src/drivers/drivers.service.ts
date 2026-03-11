@@ -1399,96 +1399,139 @@ export class DriversService {
     customer: any,
     fareData: any,
   ): Promise<Buffer> {
+
     return new Promise((resolve, reject) => {
+
       const doc = new PDFDocument({ margin: 50 });
-      const buffers: any[] = [];
+      const buffers: Buffer[] = [];
 
       doc.on('data', buffers.push.bind(buffers));
-      doc.on('end', () => {
-        const pdfData = Buffer.concat(buffers);
-        resolve(pdfData);
-      });
+      doc.on('end', () => resolve(Buffer.concat(buffers)));
       doc.on('error', reject);
 
+      const pageWidth = doc.page.width;
+
       // ================= HEADER =================
+
       doc
-        .fontSize(22)
+        .fontSize(20)
         .font('Helvetica-Bold')
         .text('ANYGO GLOBAL MOBILITY AND LOGISTICS', { align: 'center' });
 
       doc
-        .fontSize(18)
-        .text('Trip Invoice', { align: 'center' });
+        .fontSize(10)
+        .font('Helvetica')
+        .text('ANYGO Mobility & Logistics Services', { align: 'center' })
+        .text('support@anygo.com | +91 XXXXX XXXXX', { align: 'center' });
 
       doc.moveDown(2);
 
       // ================= INVOICE INFO =================
-      doc.fontSize(12).font('Helvetica');
 
-      doc.text(`Invoice ID: ${booking._id}`);
-      doc.text(`Trip Date: ${new Date(booking.tripEndTime).toLocaleString()}`);
+      doc.fontSize(12);
+
+      doc.text(`Invoice No: ${booking._id}`);
+      doc.text(`Invoice Date: ${new Date().toLocaleDateString()}`);
+
       doc.moveDown();
 
-      doc.text(`Customer Name: ${customer.firstName} ${customer.lastName}`);
-      doc.text(`Distance Travelled: ${booking.distanceKm} km`);
-      doc.moveDown(2);
+      // ================= RIDER DETAILS =================
 
-      // ================= TABLE HEADER =================
-      const tableTop = doc.y;
-      const descriptionX = 50;
-      const amountX = 400;
-
-      doc
-        .font('Helvetica-Bold')
-        .text('Description', descriptionX, tableTop)
-        .text('Amount (₹)', amountX, tableTop);
-
-      doc.moveTo(descriptionX, tableTop + 15)
-        .lineTo(550, tableTop + 15)
-        .stroke();
+      doc.font('Helvetica-Bold').text('RIDER DETAILS');
 
       doc.font('Helvetica');
-      let position = tableTop + 25;
+      doc.text(`Name: ${customer.firstName} ${customer.lastName}`);
+      doc.text(`Email: ${customer.email || 'N/A'}`);
+      doc.text(`Phone: ${customer.phone || 'N/A'}`);
 
-      const addRow = (label: string, value: number) => {
-        doc
-          .text(label, descriptionX, position)
-          .text(value.toFixed(2), amountX, position, { align: 'right' });
-        position += 20;
+      doc.moveDown();
+
+      // ================= TRIP DETAILS =================
+
+      doc.font('Helvetica-Bold').text('TRIP DETAILS');
+
+      doc.font('Helvetica');
+      doc.text(`Pickup Location: ${booking.pickupAddress || 'N/A'}`);
+      doc.text(`Drop Location: ${booking.dropAddress || 'N/A'}`);
+      doc.text(`Distance: ${booking.distanceKm} km`);
+      doc.text(`Duration: ${booking.durationMin} min`);
+      doc.text(`Trip Date: ${new Date(booking.tripEndTime).toLocaleString()}`);
+
+      doc.moveDown(2);
+
+      // ================= FARE TABLE =================
+
+      const tableTop = doc.y;
+      const descX = 50;
+      const priceX = pageWidth - 120;
+
+      doc.font('Helvetica-Bold');
+
+      doc.text('Fare Breakdown', descX, tableTop);
+
+      doc.moveDown();
+
+      doc.font('Helvetica');
+
+      let y = doc.y;
+
+      const row = (label: string, value: number) => {
+
+        doc.text(label, descX, y);
+        doc.text(`₹ ${value.toFixed(2)}`, priceX, y, { align: 'right' });
+
+        y += 20;
       };
 
-      // ================= TABLE ROWS =================
-      addRow('Base Fare', fareData.baseFare);
-      addRow('Distance Fare', fareData.distanceFare);
-      addRow('Pickup Charge', fareData.pickupCharge);
-      addRow('Loading Charge', fareData.loadingCharge);
-      addRow('Platform Commission', fareData.platformCommission || 0);
+      row('Base Fare', fareData.baseFare);
+      row('Distance Fare', fareData.distanceFare);
+      row('Pickup Charge', fareData.pickupCharge);
+      row('Loading Charge', fareData.loadingCharge);
+      row('Platform Commission', fareData.platformCommission || 0);
 
-      // Line before total
-      doc.moveTo(descriptionX, position)
-        .lineTo(550, position)
+      doc.moveTo(descX, y)
+        .lineTo(pageWidth - 50, y)
         .stroke();
 
-      position += 10;
+      y += 10;
 
       // ================= TOTAL =================
-      doc
-        .font('Helvetica-Bold')
-        .text('TOTAL', descriptionX, position)
-        .text(`₹ ${fareData.finalFare.toFixed(2)}`, amountX, position, {
-          align: 'right',
-        });
 
-      position += 40;
+      doc.font('Helvetica-Bold');
+
+      doc.text('TOTAL', descX, y);
+
+      doc.text(
+        `₹ ${fareData.finalFare.toFixed(2)}`,
+        priceX,
+        y,
+        { align: 'right' },
+      );
+
+      y += 40;
+
+      // ================= PAYMENT =================
+
+      doc.font('Helvetica');
+
+      doc.text(`Payment Method: ${booking.paymentMethod || 'Online'}`);
+
+      doc.moveDown(2);
 
       // ================= FOOTER =================
+
       doc
-        .fontSize(12)
-        .font('Helvetica')
+        .fontSize(10)
         .text(
-          'Thank you for choosing AnyGo! We appreciate your business.',
-          50,
-          position,
+          'This is an electronically generated invoice and does not require signature.',
+          { align: 'center' },
+        );
+
+      doc.moveDown();
+
+      doc
+        .text(
+          'Thank you for riding with AnyGo!',
           { align: 'center' },
         );
 
