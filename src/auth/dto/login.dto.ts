@@ -10,9 +10,9 @@ export class LoginDto {
   @IsString()
   password: string;
 
-  // 🔔 FCM TOKEN
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  fcmToken?: string;
+  // // 🔔 FCM TOKEN
+  // @ApiPropertyOptional()
+  // @IsOptional()
+  // @IsString()
+  // fcmToken?: string;
 }

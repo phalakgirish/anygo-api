@@ -19,6 +19,7 @@ import { BookingEstimate, BookingEstimateDocument } from './schemas/booking-esti
 import { PaymentStatus } from './dto/payment-status.dto';
 import { Cron } from '@nestjs/schedule';
 import { FirebaseService } from 'src/firebase/firebase.service';
+import { ExpoService } from 'src/notifications/expo.service';
 
 const BOOKING_EXPIRY_MIN = 2; // 2 minutes
 
@@ -30,6 +31,7 @@ export class BookingService {
     private readonly liveGateway: LiveTrackingGateway,
     private readonly driversService: DriversService,
     private readonly firebaseService: FirebaseService,
+    private readonly expoService: ExpoService,
     @InjectModel('Booking')
     private readonly bookingModel: Model<Booking>, private readonly configService: ConfigService,
     @InjectModel(Driver.name) private driverModel: Model<DriverDocument>,
@@ -56,6 +58,284 @@ export class BookingService {
     };
   }
 
+  // async getEstimate(customerId: string, dto: BookingEstimateDto) {
+  //   const { distanceKm, durationMin } =
+  //     await this.mapsService.getDistanceAndDuration(
+  //       dto.pickupLat,
+  //       dto.pickupLng,
+  //       dto.dropLat,
+  //       dto.dropLng,
+  //     );
+
+  //   const city = await this.mapsService.getCityFromLatLng(
+  //     dto.pickupLat,
+  //     dto.pickupLng,
+  //   );
+
+  //   // ✅ City must be active
+  //   const cityExists = await this.CityModel.findOne({
+  //     //name: city,
+  //     name: { $regex: city, $options: 'i' },
+  //     isActive: true,
+  //   });
+
+  //   if (!cityExists) {
+  //     throw new BadRequestException({
+  //       code: 'CITY_NOT_SUPPORTED',
+  //       message: 'Service not available in this city',
+  //     });
+  //   }
+
+  //   // ✅ STORE RECEIVER INFO HERE
+  //   await this.bookingEstimateModel.findOneAndUpdate(
+  //     { customerId },
+  //     {
+  //       receiverName: dto.receiverName?.trim(),
+  //       receiverMobile: dto.receiverMobile?.trim(),
+  //     },
+  //     { upsert: true, new: true },
+  //   );
+
+  //   const vehicles = await this.vehicleModel.find({ isActive: true });
+
+  //   const pricingList = await this.pricingModel.find({
+  //     vehicleType: { $in: vehicles.map(v => v.vehicleType) },
+  //     isActive: true,
+  //   });
+
+  //   const availableVehicles: {
+  //     vehicleType: string;
+  //     estimatedFare: number | null;
+  //     etaMin: number;
+  //     driversAvailable: number;
+  //   }[] = [];
+
+  //   for (const vehicle of vehicles) {
+  //     // 🔥 USE EXISTING GEO FUNCTION
+  //     let drivers = await this.driversService.findNearbyDrivers({
+  //       pickupLat: dto.pickupLat,
+  //       pickupLng: dto.pickupLng,
+  //       vehicleType: vehicle.vehicleType,
+  //       radiusKm: 3,
+  //     });
+
+  //     if (!drivers.length) {
+  //       drivers = await this.driversService.findNearbyDrivers({
+  //         pickupLat: dto.pickupLat,
+  //         pickupLng: dto.pickupLng,
+  //         vehicleType: vehicle.vehicleType,
+  //         radiusKm: 5,
+  //       });
+  //     }
+
+  //     if (!drivers.length) {
+  //       drivers = await this.driversService.findNearbyDrivers({
+  //         pickupLat: dto.pickupLat,
+  //         pickupLng: dto.pickupLng,
+  //         vehicleType: vehicle.vehicleType,
+  //         radiusKm: 10,
+  //       });
+  //     }
+
+  //     if (!drivers.length) continue; // 🚫 hide vehicle
+
+  //     const AVERAGE_SPEED_KMPH = 30;
+
+  //     const nearestDriver = drivers[0]; // closest one
+
+  //     const etaMin = Math.ceil(
+  //       ((nearestDriver.distanceMeters / 1000) / AVERAGE_SPEED_KMPH) * 60
+  //     );
+
+  //     const pricing = pricingList.find(
+  //       p => p.vehicleType === vehicle.vehicleType,
+  //     );
+
+  //     let estimatedFare: number | null = null;
+
+  //     if (pricing) {
+  //       estimatedFare = Math.round(
+  //         Number(pricing.baseFare) +
+  //         distanceKm * Number(pricing.perKmRate),
+  //       );
+  //     }
+
+  //     availableVehicles.push({
+  //       vehicleType: vehicle.vehicleType,
+  //       estimatedFare,
+  //       etaMin,
+  //       driversAvailable: drivers.length,
+  //     });
+  //   }
+
+  //   // 🚫 No vehicles = no service
+  //   if (!availableVehicles.length) {
+  //     throw new BadRequestException(
+  //       'No drivers available nearby',
+  //     );
+  //   }
+
+  //   return {
+  //     distanceKm,
+  //     durationMin,
+  //     city,
+  //     vehicles: availableVehicles,
+  //   };
+  // }
+
+  // // 3️⃣ CREATE BOOKING + DISPATCH
+  // async createBooking(customerId: string, dto: SelectVehicleDto) {
+  //   // 🔁 Recalculate (never trust frontend)
+  //   const { distanceKm, durationMin } =
+  //     await this.mapsService.getDistanceAndDuration(
+  //       dto.pickupLat,
+  //       dto.pickupLng,
+  //       dto.dropLat,
+  //       dto.dropLng,
+  //     );
+
+  //   const pickupCity = await this.mapsService.getCityFromLatLng(
+  //     dto.pickupLat,
+  //     dto.pickupLng,
+  //   );
+
+  //   // ✅ Check city exists in master
+  //   const cityExists = await this.CityModel.findOne({
+  //     //name: pickupCity,
+  //     name: { $regex: pickupCity, $options: 'i' },
+  //     isActive: true,
+  //   });
+
+  //   if (!cityExists) {
+  //     throw new BadRequestException(
+  //       'Booking is not available for this city',
+  //     );
+  //   }
+
+  //   // ✅ Check drivers exist for this city
+  //   const driverExistsInCity = await this.driverModel.exists({
+  //     city: pickupCity,
+  //     isOnline: true,
+  //   });
+
+  //   if (!driverExistsInCity) {
+  //     throw new BadRequestException(
+  //       'Booking is not available for this city',
+  //     );
+  //   }
+
+  //   const customer = await this.customerModel
+  //     .findById(customerId)
+  //     .select('firstName lastName mobile')
+  //     .lean();
+
+  //   if (!customer) {
+  //     throw new BadRequestException('Customer not found');
+  //   }
+
+  //   const customerName = `${customer.firstName ?? ''} ${customer.lastName ?? ''}`.trim();
+  //   const customerMobile = customer.mobile;
+
+  //   const estimate = await this.bookingEstimateModel
+  //     .findOne({ customerId })
+  //     .lean();
+
+  //   const booking = await this.bookingModel.create({
+  //     customerId,
+  //     city: pickupCity,
+  //     customerName,
+  //     customerMobile,
+  //     receiverName: estimate?.receiverName || customerName,
+  //     receiverMobile: estimate?.receiverMobile || customerMobile,
+  //     pickupLocation: { lat: dto.pickupLat, lng: dto.pickupLng },
+  //     dropLocation: { lat: dto.dropLat, lng: dto.dropLng },
+  //     vehicleType: dto.vehicleType,
+  //     distanceKm,
+  //     durationMin,
+  //     loadingRequired: dto.loadingRequired === true,
+  //     labourCount: dto.loadingRequired ? dto.labourCount ?? 0 : 0,
+  //     status: BookingStatus.SEARCHING_DRIVER,
+  //     expiresAt: new Date(Date.now() + BOOKING_EXPIRY_MIN * 60 * 1000),
+  //   });
+
+  //   // 🔍 Find nearby drivers
+  //   let drivers = await this.driversService.findNearbyDrivers({
+  //     pickupLat: dto.pickupLat,
+  //     pickupLng: dto.pickupLng,
+  //     vehicleType: dto.vehicleType,
+  //     radiusKm: 3,
+  //   });
+
+  //   if (!drivers.length) {
+  //     drivers = await this.driversService.findNearbyDrivers({
+  //       pickupLat: dto.pickupLat,
+  //       pickupLng: dto.pickupLng,
+  //       vehicleType: dto.vehicleType,
+  //       radiusKm: 5,
+  //     });
+  //   }
+
+  //   if (!drivers.length) {
+  //     drivers = await this.driversService.findNearbyDrivers({
+  //       pickupLat: dto.pickupLat,
+  //       pickupLng: dto.pickupLng,
+  //       vehicleType: dto.vehicleType,
+  //       radiusKm: 10,
+  //     });
+  //   }
+
+  //   if (!drivers.length) {
+  //     booking.status = BookingStatus.NO_DRIVER_FOUND;
+  //     await booking.save();
+  //     return { message: 'No drivers nearby' };
+  //   }
+
+  //   for (const driver of drivers) {
+
+  //     // 🔔 WebSocket notification (existing)
+  //     this.liveGateway.server
+  //       .to(`driver:${driver._id}`)
+  //       .emit('booking:request', {
+  //         bookingId: booking._id,
+  //         pickup: booking.pickupLocation,
+  //         drop: booking.dropLocation,
+  //       });
+
+  //     // 🔥 FCM Push Notification
+  //     if (driver.fcmToken) {
+  //       await this.firebaseService.sendNotification(
+  //         driver.fcmToken,
+  //         'New Booking Request',
+  //         'A new trip is available near your location',
+  //         {
+  //           bookingId: booking._id.toString(),
+  //           type: "BOOKING_REQUEST",
+  //           vehicleType: booking.vehicleType
+  //         },
+  //       );
+  //     }
+  //   }
+
+  //   // 🔔 Notify drivers
+  //   // drivers.forEach(driver => {
+  //   //   this.liveGateway.server
+  //   //     .to(`driver:${driver._id}`)
+  //   //     .emit('booking:request', {
+  //   //       bookingId: booking._id,
+  //   //       pickup: booking.pickupLocation,
+  //   //       drop: booking.dropLocation,
+  //   //     });
+  //   // });
+
+  //   booking.status = BookingStatus.DRIVER_NOTIFIED;
+  //   await booking.save();
+
+  //   // ✅ CLEANUP TEMP ESTIMATE (CORRECT PLACE)
+  //   await this.bookingEstimateModel.deleteOne({ customerId });
+
+  //   return { bookingId: booking._id };
+  // }
+
   async getEstimate(customerId: string, dto: BookingEstimateDto) {
     const { distanceKm, durationMin } =
       await this.mapsService.getDistanceAndDuration(
@@ -65,15 +345,41 @@ export class BookingService {
         dto.dropLng,
       );
 
-    const city = await this.mapsService.getCityFromLatLng(
-      dto.pickupLat,
-      dto.pickupLng,
-    );
+    //     const city = await this.mapsService.getCityFromLatLng(
+    //       dto.pickupLat,
+    //       dto.pickupLng,
+    //     );
+    // console.log('mapsService returned city:', city);
+    //     // ✅ City must be active
+    //     const cityExists = await this.CityModel.findOne({
+    //       name: city,
+    //       isActive: true,
+    //     });
 
-    // ✅ City must be active
+    //     if (!cityExists) {
+    //       throw new BadRequestException({
+    //         code: 'CITY_NOT_SUPPORTED',
+    //         message: 'Service not available in this city',
+    //       });
+    //     }
+
+    let city = await this.mapsService.getCityFromLatLng(dto.pickupLat, dto.pickupLng);
+
+    // Normalize city string to match your DB
+    if (!city) {
+      throw new BadRequestException({
+        code: 'CITY_NOT_SUPPORTED',
+        message: 'Service not available in this city',
+      });
+    }
+
+    // Handle known spelling variations
+    if (city.toLowerCase().includes('nasik')) {
+      city = 'Nashik'; // match your CityModel
+    }
+
     const cityExists = await this.CityModel.findOne({
-      //name: city,
-      name: { $regex: city, $options: 'i' },
+      name: city,
       isActive: true,
     });
 
@@ -83,6 +389,8 @@ export class BookingService {
         message: 'Service not available in this city',
       });
     }
+
+    console.log('Normalized city:', city); // Should now print "Nashik"
 
     // ✅ STORE RECEIVER INFO HERE
     await this.bookingEstimateModel.findOneAndUpdate(
@@ -192,22 +500,54 @@ export class BookingService {
         dto.dropLng,
       );
 
-    const pickupCity = await this.mapsService.getCityFromLatLng(
-      dto.pickupLat,
-      dto.pickupLng,
-    );
+    // const pickupCity = await this.mapsService.getCityFromLatLng(
+    //   dto.pickupLat,
+    //   dto.pickupLng,
+    // );
 
-    // ✅ Check city exists in master
-    const cityExists = await this.CityModel.findOne({
-      //name: pickupCity,
-      name: { $regex: pickupCity, $options: 'i' },
-      isActive: true,
-    });
+    // // ✅ Check city exists in master
+    // const cityExists = await this.CityModel.findOne({
+    //   name: pickupCity,
+    //   isActive: true,
+    // });
 
+    // if (!cityExists) {
+    //   throw new BadRequestException(
+    //     'Booking is not available for this city',
+    //   );
+    // }
+
+    // // ✅ Check drivers exist for this city
+    // const driverExistsInCity = await this.driverModel.exists({
+    //   city: pickupCity,
+    //   isOnline: true,
+    // });
+
+    // if (!driverExistsInCity) {
+    //   throw new BadRequestException(
+    //     'Booking is not available for this city',
+    //   );
+    // }
+
+    // 🔹 Get city from map service
+    let pickupCity = await this.mapsService.getCityFromLatLng(dto.pickupLat, dto.pickupLng);
+
+    if (!pickupCity) {
+      throw new BadRequestException('Booking is not available for this city');
+    }
+
+    // 🔹 Normalize known variations
+    if (pickupCity.toLowerCase().includes('nasik')) {
+      pickupCity = 'Nashik';
+    } else if (pickupCity.toLowerCase().includes('pune')) {
+      pickupCity = 'Pune';
+    }
+    // Add more cities as needed
+
+    // ✅ Check city exists in master DB
+    const cityExists = await this.CityModel.findOne({ name: pickupCity, isActive: true });
     if (!cityExists) {
-      throw new BadRequestException(
-        'Booking is not available for this city',
-      );
+      throw new BadRequestException('Booking is not available for this city');
     }
 
     // ✅ Check drivers exist for this city
@@ -215,11 +555,8 @@ export class BookingService {
       city: pickupCity,
       isOnline: true,
     });
-
     if (!driverExistsInCity) {
-      throw new BadRequestException(
-        'Booking is not available for this city',
-      );
+      throw new BadRequestException('Booking is not available for this city');
     }
 
     const customer = await this.customerModel
@@ -289,41 +626,18 @@ export class BookingService {
     }
 
     for (const driver of drivers) {
-
-      // 🔔 WebSocket notification (existing)
-      this.liveGateway.server
-        .to(`driver:${driver._id}`)
-        .emit('booking:request', {
-          bookingId: booking._id,
-          pickup: booking.pickupLocation,
-          drop: booking.dropLocation,
-        });
-
-      // 🔥 FCM Push Notification
+      console.log('Driver FCM Token:', driver.fcmToken);
       if (driver.fcmToken) {
         await this.firebaseService.sendNotification(
           driver.fcmToken,
-          'New Booking Request',
-          'A new trip is available near your location',
-          {
-            bookingId: booking._id.toString(),
-            type: "BOOKING_REQUEST",
-            vehicleType: booking.vehicleType
-          },
+          'New Ride Request',
+          `Pickup at ${booking.pickupLocation.lat}, ${booking.pickupLocation.lng}`,
+          { bookingId: booking._id.toString() }
         );
+      } else {
+        console.log('No FCM token for this driver:', driver._id);
       }
     }
-
-    // 🔔 Notify drivers
-    // drivers.forEach(driver => {
-    //   this.liveGateway.server
-    //     .to(`driver:${driver._id}`)
-    //     .emit('booking:request', {
-    //       bookingId: booking._id,
-    //       pickup: booking.pickupLocation,
-    //       drop: booking.dropLocation,
-    //     });
-    // });
 
     booking.status = BookingStatus.DRIVER_NOTIFIED;
     await booking.save();

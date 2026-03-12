@@ -396,27 +396,27 @@ export class DriversService {
       isOnTrip: true,
     });
 
-    // 🔔 SEND PUSH NOTIFICATION TO CUSTOMER
+    // // 🔔 SEND PUSH NOTIFICATION TO CUSTOMER
 
-    const customer = await this.customerModel
-      .findById(booking.customerId)
-      .select('fcmToken firstName')
-      .lean();
+    // const customer = await this.customerModel
+    //   .findById(booking.customerId)
+    //   .select('fcmToken firstName')
+    //   .lean();
 
-    if (customer?.fcmToken) {
+    // if (customer?.fcmToken) {
 
-      await this.firebaseService.sendNotification(
-        customer.fcmToken,
-        'Driver Assigned 🚚',
-        `${driver.firstName} ${driver.lastName} has accepted your booking`,
-        {
-          bookingId: booking._id.toString(),
-          driverId: driverId.toString(),
-          type: 'DRIVER_ASSIGNED'
-        }
-      );
+    //   await this.firebaseService.sendNotification(
+    //     customer.fcmToken,
+    //     'Driver Assigned 🚚',
+    //     `${driver.firstName} ${driver.lastName} has accepted your booking`,
+    //     {
+    //       bookingId: booking._id.toString(),
+    //       driverId: driverId.toString(),
+    //       type: 'DRIVER_ASSIGNED'
+    //     }
+    //   );
 
-    }
+    // }
 
     // 5️⃣ NOTIFY CUSTOMER (safe)
     this.liveGateway.server
@@ -893,6 +893,9 @@ export class DriversService {
         $project: {
           _id: 1,
           distanceMeters: 1,
+          fcmToken: 1, // <-- include FCM token here
+          name: 1,     // optional: include name
+          city: 1,
         },
       },
       { $limit: 10 },
@@ -1563,4 +1566,20 @@ export class DriversService {
     });
   }
 
+  // ======= FCM ================
+  async saveToken(driverId: string, fcmToken: string) {
+    return this.driverModel.findByIdAndUpdate(
+      driverId,
+      { fcmToken },
+      { new: true },
+    );
+  }
+
+  async updateExpoToken(driverId: string, expoToken: string) {
+    return this.driverModel.findByIdAndUpdate(driverId, { expoToken });
+  }
+
+  async updateFcmToken(driverId: string, fcmToken: string) {
+    return this.driverModel.findByIdAndUpdate(driverId, { fcmToken });
+  }
 }

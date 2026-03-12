@@ -429,5 +429,35 @@ export class DriversController {
   getBankDetails(@Req() req) {
     return this.driversService.getDriverBankDetails(req.driverId);
   }
+
+  @Post('save-token')
+  @UseGuards(DriverAuthGuard)
+  async saveToken(@Req() req, @Body() body) {
+
+    const driverId = req.driverId;
+
+    return this.driversService.saveToken(driverId, body.fcmToken);
+  }
+
+  @Post('update-expo-token')
+  async updateExpoToken(@Req() req, @Body() body: { expoToken: string }) {
+    const driverId = req.user.id;
+    const { expoToken } = body;
+
+    // Call the service method — do NOT use driverModel here
+    await this.driversService.updateExpoToken(driverId, expoToken);
+
+    return { success: true };
+  }
+
+  @Post('update-fcm-token')
+  async updateFcmToken(@Req() req, @Body() body: { fcmToken: string }) {
+    const driverId = req.user?.id;
+    const { fcmToken } = body;
+
+    await this.driversService.updateFcmToken(driverId, fcmToken);
+    return { success: true };
+  }
+
 }
 

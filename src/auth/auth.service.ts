@@ -171,24 +171,24 @@ export class AuthService {
     }
 
     //Login 
-    //async login(mobile: string, password: string) {
+    async login(mobile: string, password: string) {
     
-    async login(dto: LoginDto) {
+    // async login(dto: LoginDto) {
         // 1️⃣ Try CUSTOMER
-        const { mobile, password, fcmToken } = dto;
+        // const { mobile, password, fcmToken } = dto;
 
         const customer = await this.customerModel.findOne({ mobile });
         if (customer) {
             const match = await bcrypt.compare(password, customer.password);
             if (!match) throw new BadRequestException('Authentication Failed');
 
-            // 🔔 SAVE FCM TOKEN (NEW)
-            if (fcmToken) {
-                await this.customerModel.updateOne(
-                    { _id: customer._id },
-                    { fcmToken }
-                );
-            }
+            // // 🔔 SAVE FCM TOKEN (NEW)
+            // if (fcmToken) {
+            //     await this.customerModel.updateOne(
+            //         { _id: customer._id },
+            //         { fcmToken }
+            //     );
+            // }
             return this.generateLoginResponse(customer._id.toString(), 'customer');
         }
 
@@ -198,13 +198,13 @@ export class AuthService {
             const match = await bcrypt.compare(password, driver.password);
             if (!match) throw new BadRequestException('Authentication Failed');
 
-            // 🔔 SAVE FCM TOKEN (NEW)
-            if (fcmToken) {
-                await this.driverModel.updateOne(
-                    { _id: driver._id },
-                    { fcmToken }
-                );
-            }
+            // // 🔔 SAVE FCM TOKEN (NEW)
+            // if (fcmToken) {
+            //     await this.driverModel.updateOne(
+            //         { _id: driver._id },
+            //         { fcmToken }
+            //     );
+            // }
             return this.generateLoginResponse(driver._id.toString(), 'driver');
         }
 

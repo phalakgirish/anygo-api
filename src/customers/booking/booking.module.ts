@@ -15,6 +15,8 @@ import { VehicleSchema } from 'src/master/schemas/vehicle.schema';
 import { CustomerSchema } from '../schemas/customer.schema';
 import { BookingEstimate, BookingEstimateSchema } from './schemas/booking-estimate.schema';
 import { FirebaseModule } from 'src/firebase/firebase.module';
+import { ExpoService } from 'src/notifications/expo.service';
+import { FirebaseService } from 'src/firebase/firebase.service';
 
 @Module({
   imports: [ MongooseModule.forFeature([{ name: Booking.name, schema: BookingSchema },{ name: 'Driver', schema: DriverSchema },
@@ -22,7 +24,7 @@ import { FirebaseModule } from 'src/firebase/firebase.module';
     { name: 'Customer', schema: CustomerSchema },{ name: BookingEstimate.name, schema: BookingEstimateSchema },]),
   forwardRef(() =>AuthModule), DriversModule,GatewaysModule, FirebaseModule,],
   controllers: [BookingController],
-  providers: [BookingService, GoogleMapsService,LiveTrackingGateway],
+  providers: [BookingService, GoogleMapsService,LiveTrackingGateway, FirebaseService, ExpoService],
   exports: [BookingService],
 })
 export class BookingModule {}
