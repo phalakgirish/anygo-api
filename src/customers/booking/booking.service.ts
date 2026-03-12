@@ -18,6 +18,7 @@ import { Customer } from '../schemas/customer.schema';
 import { BookingEstimate, BookingEstimateDocument } from './schemas/booking-estimate.schema';
 import { PaymentStatus } from './dto/payment-status.dto';
 import { Cron } from '@nestjs/schedule';
+import { FirebaseService } from 'src/firebase/firebase.service';
 
 const BOOKING_EXPIRY_MIN = 2; // 2 minutes
 
@@ -28,6 +29,7 @@ export class BookingService {
     private readonly mapsService: GoogleMapsService,
     private readonly liveGateway: LiveTrackingGateway,
     private readonly driversService: DriversService,
+    private readonly firebaseService: FirebaseService,
     @InjectModel('Booking')
     private readonly bookingModel: Model<Booking>, private readonly configService: ConfigService,
     @InjectModel(Driver.name) private driverModel: Model<DriverDocument>,
@@ -70,7 +72,8 @@ export class BookingService {
 
     // ✅ City must be active
     const cityExists = await this.CityModel.findOne({
-      name: city,
+      //name: city,
+      name: { $regex: city, $options: 'i' },
       isActive: true,
     });
 
@@ -196,7 +199,8 @@ export class BookingService {
 
     // ✅ Check city exists in master
     const cityExists = await this.CityModel.findOne({
-      name: pickupCity,
+      //name: pickupCity,
+      name: { $regex: pickupCity, $options: 'i' },
       isActive: true,
     });
 
@@ -284,8 +288,9 @@ export class BookingService {
       return { message: 'No drivers nearby' };
     }
 
-    // 🔔 Notify drivers
-    drivers.forEach(driver => {
+    for (const driver of drivers) {
+
+      // 🔔 WebSocket notification (existing)
       this.liveGateway.server
         .to(`driver:${driver._id}`)
         .emit('booking:request', {
@@ -293,7 +298,32 @@ export class BookingService {
           pickup: booking.pickupLocation,
           drop: booking.dropLocation,
         });
-    });
+
+      // 🔥 FCM Push Notification
+      if (driver.fcmToken) {
+        await this.firebaseService.sendNotification(
+          driver.fcmToken,
+          'New Booking Request',
+          'A new trip is available near your location',
+          {
+            bookingId: booking._id.toString(),
+            type: "BOOKING_REQUEST",
+            vehicleType: booking.vehicleType
+          },
+        );
+      }
+    }
+
+    // 🔔 Notify drivers
+    // drivers.forEach(driver => {
+    //   this.liveGateway.server
+    //     .to(`driver:${driver._id}`)
+    //     .emit('booking:request', {
+    //       bookingId: booking._id,
+    //       pickup: booking.pickupLocation,
+    //       drop: booking.dropLocation,
+    //     });
+    // });
 
     booking.status = BookingStatus.DRIVER_NOTIFIED;
     await booking.save();
@@ -456,7 +486,7 @@ export class BookingService {
             : null,
         }
         : null,
-      routePath: booking.routePath, 
+      routePath: booking.routePath,
 
       driverToPickupEtaMin: booking.driverToPickupEtaMin,
       pickupToDropEtaMin: booking.pickupToDropEtaMin,

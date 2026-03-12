@@ -14,12 +14,13 @@ import { City, CitySchema } from 'src/master/schemas/city.schema';
 import { VehicleSchema } from 'src/master/schemas/vehicle.schema';
 import { CustomerSchema } from '../schemas/customer.schema';
 import { BookingEstimate, BookingEstimateSchema } from './schemas/booking-estimate.schema';
+import { FirebaseModule } from 'src/firebase/firebase.module';
 
 @Module({
   imports: [ MongooseModule.forFeature([{ name: Booking.name, schema: BookingSchema },{ name: 'Driver', schema: DriverSchema },
     { name: Pricing.name, schema: PricingSchema },{ name: City.name, schema: CitySchema },{ name: 'Vehicle', schema: VehicleSchema },
     { name: 'Customer', schema: CustomerSchema },{ name: BookingEstimate.name, schema: BookingEstimateSchema },]),
-  forwardRef(() =>AuthModule), DriversModule,GatewaysModule,],
+  forwardRef(() =>AuthModule), DriversModule,GatewaysModule, FirebaseModule,],
   controllers: [BookingController],
   providers: [BookingService, GoogleMapsService,LiveTrackingGateway],
   exports: [BookingService],

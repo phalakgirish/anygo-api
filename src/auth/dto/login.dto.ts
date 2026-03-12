@@ -1,5 +1,5 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsMobilePhone, IsString } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsMobilePhone, IsOptional, IsString } from 'class-validator';
 
 export class LoginDto {
   @ApiProperty()
@@ -9,4 +9,10 @@ export class LoginDto {
   @ApiProperty()
   @IsString()
   password: string;
+
+  // 🔔 FCM TOKEN
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  fcmToken?: string;
 }

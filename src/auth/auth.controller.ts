@@ -45,7 +45,8 @@ export class AuthController {
 
   @Post('login')
   async login(@Body() dto: LoginDto) {
-    return this.authService.login(dto.mobile, dto.password);
+    //return this.authService.login(dto.mobile, dto.password);
+    return this.authService.login(dto);
   }
 
   // Forgot Password

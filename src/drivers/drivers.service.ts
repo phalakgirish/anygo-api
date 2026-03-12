@@ -23,6 +23,7 @@ import { Customer, CustomerDocument } from 'src/customers/schemas/customer.schem
 import PDFDocument from 'pdfkit';
 import { Buffer } from 'buffer';
 import { Vehicle, VehicleDocument } from 'src/master/schemas/vehicle.schema';
+import { FirebaseService } from 'src/firebase/firebase.service';
 
 
 @Injectable()
@@ -42,6 +43,7 @@ export class DriversService {
     @InjectModel(Customer.name) private customerModel: Model<CustomerDocument>,
     @InjectModel(Vehicle.name) private readonly vehicleModel: Model<VehicleDocument>,
     private readonly mailService: MailService,
+    private readonly firebaseService: FirebaseService,
   ) { }
 
   // 1. Personal (OTP step)
@@ -393,6 +395,28 @@ export class DriversService {
       isAvailable: false,
       isOnTrip: true,
     });
+
+    // 🔔 SEND PUSH NOTIFICATION TO CUSTOMER
+
+    const customer = await this.customerModel
+      .findById(booking.customerId)
+      .select('fcmToken firstName')
+      .lean();
+
+    if (customer?.fcmToken) {
+
+      await this.firebaseService.sendNotification(
+        customer.fcmToken,
+        'Driver Assigned 🚚',
+        `${driver.firstName} ${driver.lastName} has accepted your booking`,
+        {
+          bookingId: booking._id.toString(),
+          driverId: driverId.toString(),
+          type: 'DRIVER_ASSIGNED'
+        }
+      );
+
+    }
 
     // 5️⃣ NOTIFY CUSTOMER (safe)
     this.liveGateway.server

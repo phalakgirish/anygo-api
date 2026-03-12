@@ -16,6 +16,7 @@ import { City, CitySchema } from 'src/master/schemas/city.schema';
 import { Customer, CustomerSchema } from 'src/customers/schemas/customer.schema';
 import { MailModule } from 'src/common/mail/mail.module';
 import { Vehicle, VehicleSchema } from 'src/master/schemas/vehicle.schema';
+import { FirebaseModule } from 'src/firebase/firebase.module';
 
 @Module({
   imports: [
@@ -26,7 +27,7 @@ import { Vehicle, VehicleSchema } from 'src/master/schemas/vehicle.schema';
     JwtModule.register({
       secret: 'driver-registration-secret',
       signOptions: { expiresIn: '1d' },
-    }), forwardRef(() => AuthModule), GatewaysModule, MailModule,
+    }), forwardRef(() => AuthModule), GatewaysModule, MailModule, FirebaseModule,
   ],
   controllers: [DriversController],
   providers: [DriversService, DriverRegistrationGuard, LiveTrackingGateway, DigiLockerService,],

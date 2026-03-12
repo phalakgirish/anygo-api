@@ -22,6 +22,9 @@ export class Customer {
 
     @Prop({ required: true, default: false })
     acceptedTerms: boolean;
+
+    @Prop({ default: null })
+     fcmToken?: string;
 }
 
 export const CustomerSchema = SchemaFactory.createForClass(Customer);

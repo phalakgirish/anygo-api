@@ -124,6 +124,9 @@ export class Driver {
     @Prop()
     city: string;
 
+    @Prop({ default: null })
+    fcmToken?: string;
+
     // @Prop({ required: true, default: false })
     //acceptedTerms: boolean;
 }
